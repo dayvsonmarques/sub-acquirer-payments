@@ -1,59 +1,409 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Sistema de Integração com Subadquirentes - Laravel
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Sistema de integração com subadquirentes de pagamento (gateways de PIX e saques) com arquitetura multi-tenant onde cada usuário pode usar subadquirentes diferentes.
 
-## About Laravel
+## 📋 Requisitos Técnicos
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- PHP 8.2+
+- Laravel 12.38.1
+- MySQL/PostgreSQL
+- Composer
+- Redis (opcional, para filas)
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## 🚀 Instalação
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+1. **Clone o repositório e instale as dependências:**
 
-## Learning Laravel
+```bash
+composer install
+```
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+2. **Configure o arquivo `.env`:**
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Copie o arquivo `.env.example` para `.env` e configure:
 
-## Laravel Sponsors
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=laravel
+DB_USERNAME=root
+DB_PASSWORD=
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+QUEUE_CONNECTION=database
+```
 
-### Premium Partners
+3. **Execute as migrations:**
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+```bash
+php artisan migrate
+```
 
-## Contributing
+4. **Execute os seeders para popular os subadquirentes:**
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```bash
+php artisan db:seed
+```
 
-## Code of Conduct
+Isso criará:
+- SubadqA (https://0acdeaee-1729-4d55-80eb-d54a125e5e18.mock.pstmn.io)
+- SubadqB (https://ef8513c8-fd99-4081-8963-573cd135e133.mock.pstmn.io)
+- 2 usuários de teste (testa@example.com e testb@example.com)
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+5. **Gere a chave da aplicação (se necessário):**
 
-## Security Vulnerabilities
+```bash
+php artisan key:generate
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+6. **Inicie o servidor de filas (para processar webhooks):**
 
-## License
+```bash
+php artisan queue:work
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+7. **Inicie o servidor de desenvolvimento:**
+
+```bash
+php artisan serve
+```
+
+## 🔐 Autenticação
+
+O sistema usa Laravel Sanctum para autenticação via API. Para obter um token:
+
+```bash
+# Criar um token para o usuário
+php artisan tinker
+```
+
+```php
+$user = \App\Models\User::where('email', 'testa@example.com')->first();
+$token = $user->createToken('api-token')->plainTextToken;
+echo $token;
+```
+
+## 📡 Endpoints da API
+
+### Base URL
+```
+http://localhost:8000/api
+```
+
+### 1. Criar Transação PIX
+
+**POST** `/api/pix`
+
+**Headers:**
+```
+Authorization: Bearer {token}
+Content-Type: application/json
+```
+
+**Body:**
+```json
+{
+    "amount": 100.50,
+    "pix_key": "12345678900",
+    "pix_key_type": "cpf",
+    "description": "Pagamento de teste"
+}
+```
+
+**Tipos de chave PIX aceitos:**
+- `cpf`
+- `email`
+- `phone`
+- `random`
+
+**Resposta de sucesso (201):**
+```json
+{
+    "success": true,
+    "message": "PIX transaction created successfully",
+    "data": {
+        "transaction_id": "PIX-XXXXXXXX-1234567890",
+        "external_id": "ext-123",
+        "status": "PENDING",
+        "amount": "100.50",
+        "created_at": "2025-11-17T21:00:00.000000Z"
+    }
+}
+```
+
+### 2. Criar Transação de Saque
+
+**POST** `/api/withdraw`
+
+**Headers:**
+```
+Authorization: Bearer {token}
+Content-Type: application/json
+```
+
+**Body:**
+```json
+{
+    "amount": 500.00,
+    "bank_code": "001",
+    "agency": "1234",
+    "account": "56789",
+    "account_type": "checking",
+    "account_holder_name": "João Silva",
+    "account_holder_document": "12345678900",
+    "description": "Saque de teste"
+}
+```
+
+**Tipos de conta aceitos:**
+- `checking` (conta corrente)
+- `savings` (conta poupança)
+
+**Resposta de sucesso (201):**
+```json
+{
+    "success": true,
+    "message": "Withdraw transaction created successfully",
+    "data": {
+        "transaction_id": "WD-XXXXXXXX-1234567890",
+        "external_id": "ext-456",
+        "status": "PENDING",
+        "amount": "500.00",
+        "created_at": "2025-11-17T21:00:00.000000Z"
+    }
+}
+```
+
+## 📝 Exemplos de Uso
+
+### cURL - Criar Transação PIX
+
+```bash
+curl -X POST http://localhost:8000/api/pix \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": 100.50,
+    "pix_key": "12345678900",
+    "pix_key_type": "cpf",
+    "description": "Pagamento de teste"
+  }'
+```
+
+### cURL - Criar Transação de Saque
+
+```bash
+curl -X POST http://localhost:8000/api/withdraw \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": 500.00,
+    "bank_code": "001",
+    "agency": "1234",
+    "account": "56789",
+    "account_type": "checking",
+    "account_holder_name": "João Silva",
+    "account_holder_document": "12345678900",
+    "description": "Saque de teste"
+  }'
+```
+
+### Postman Collection
+
+Você pode importar a collection do Postman usando os exemplos acima.
+
+## 🔄 Fluxo de Transação
+
+1. **Usuário solicita PIX/Saque** via API
+2. **Sistema identifica** o subadquirente do usuário
+3. **Envia requisição** para API mock do subadquirente
+4. **Registra transação** com status `PENDING`
+5. **Dispara Job** para simular webhook após 5-10 segundos
+6. **Webhook atualiza** status para `CONFIRMED`/`PAID`
+
+## 🏗️ Arquitetura
+
+### Estrutura de Diretórios
+
+```
+app/
+├── Contracts/
+│   └── SubacquirerInterface.php      # Interface para subadquirentes
+├── Http/
+│   └── Controllers/
+│       └── Api/
+│           ├── PixController.php     # Controller para PIX
+│           └── WithdrawController.php # Controller para Saques
+├── Jobs/
+│   ├── SimulatePixWebhook.php         # Job para simular webhook PIX
+│   └── SimulateWithdrawWebhook.php    # Job para simular webhook Saque
+├── Models/
+│   ├── PixTransaction.php             # Model de transação PIX
+│   ├── Subacquirer.php                # Model de subadquirente
+│   ├── User.php                        # Model de usuário
+│   └── WithdrawTransaction.php        # Model de transação de saque
+├── Providers/
+│   └── SubacquirerServiceProvider.php # Service Provider
+└── Services/
+    ├── SubacquirerService.php          # Serviço principal
+    └── Subacquirers/
+        └── GenericSubacquirer.php     # Implementação genérica para todos os subadquirentes
+```
+
+### Extensibilidade
+
+O sistema usa uma implementação genérica (`GenericSubacquirer`) que funciona para todos os subadquirentes. SubadqA e SubadqB são apenas registros na tabela `subacquirers` com diferentes URLs de API.
+
+**Para adicionar um novo subadquirente:**
+
+1. **Adicionar registro no banco de dados** via seeder ou manualmente:
+
+```php
+Subacquirer::create([
+    'name' => 'SubadqC',
+    'code' => 'subadqc',
+    'base_url' => 'https://api.subadqc.com',
+    'is_active' => true,
+]);
+```
+
+2. **Se precisar de comportamento específico**, crie uma classe customizada:
+
+```php
+<?php
+
+namespace App\Services\Subacquirers;
+
+use App\Contracts\SubacquirerInterface;
+use App\Models\Subacquirer;
+
+class SpecialSubacquirer implements SubacquirerInterface
+{
+    // Implementação específica
+}
+```
+
+3. **Registrar no `SubacquirerService`**:
+
+```php
+public function getImplementation(Subacquirer $subacquirer): SubacquirerInterface
+{
+    $code = strtolower($subacquirer->code);
+    
+    return match ($code) {
+        'special_subacquirer' => new SpecialSubacquirer($subacquirer),
+        default => new GenericSubacquirer($subacquirer), // Genérico para todos
+    };
+}
+```
+
+## 📊 Banco de Dados
+
+### Tabelas Principais
+
+- `users` - Usuários do sistema
+- `subacquirers` - Subadquirentes disponíveis
+- `pix_transactions` - Transações PIX
+- `withdraw_transactions` - Transações de saque
+- `jobs` - Fila de jobs (para webhooks)
+
+### Status de Transações
+
+**PIX:**
+- `PENDING` - Aguardando confirmação
+- `CONFIRMED` - Confirmado
+- `FAILED` - Falhou
+- `CANCELLED` - Cancelado
+
+**Saque:**
+- `PENDING` - Aguardando pagamento
+- `PAID` - Pago
+- `FAILED` - Falhou
+- `CANCELLED` - Cancelado
+
+## 🔧 Configuração de Filas
+
+O sistema usa filas assíncronas para processar webhooks. Por padrão, está configurado para usar `database`.
+
+Para usar Redis (recomendado para produção):
+
+1. Instale Redis
+2. Configure no `.env`:
+```env
+QUEUE_CONNECTION=redis
+REDIS_HOST=127.0.0.1
+REDIS_PASSWORD=null
+REDIS_PORT=6379
+```
+
+3. Instale o Horizon (opcional):
+```bash
+composer require laravel/horizon
+php artisan horizon:install
+```
+
+## 📝 Logging
+
+Todos os eventos importantes são registrados em logs:
+
+- Requisições aos subadquirentes
+- Respostas dos subadquirentes
+- Processamento de webhooks
+- Erros e exceções
+
+Logs podem ser visualizados em `storage/logs/laravel.log`.
+
+## 🧪 Testes
+
+Para executar os testes:
+
+```bash
+php artisan test
+```
+
+## 🚨 Tratamento de Erros
+
+O sistema possui tratamento robusto de erros:
+
+- Validação de dados de entrada
+- Tratamento de erros de API dos subadquirentes
+- Retry automático em caso de falha (3 tentativas)
+- Logging detalhado de erros
+
+## 📈 Performance
+
+- Suporta 3+ requisições/segundo
+- Processamento assíncrono de webhooks
+- Índices otimizados no banco de dados
+- Cache de configurações quando aplicável
+
+## 🔒 Segurança
+
+- Autenticação via Laravel Sanctum
+- Validação de dados de entrada
+- Proteção contra SQL Injection (Eloquent ORM)
+- Logs de auditoria
+
+## 📚 Recursos Adicionais
+
+- [Documentação Laravel](https://laravel.com/docs)
+- [Laravel Sanctum](https://laravel.com/docs/sanctum)
+- [Laravel Queues](https://laravel.com/docs/queues)
+
+## 👥 Usuários de Teste
+
+Após executar o seeder, você terá:
+
+- **testa@example.com** - Usa SubadqA
+- **testb@example.com** - Usa SubadqB
+
+Senha padrão: `password`
+
+## 📞 Suporte
+
+Para dúvidas ou problemas, consulte a documentação do Laravel ou abra uma issue no repositório.
+
+---
+
+Desenvolvido com ❤️ usando Laravel
+
