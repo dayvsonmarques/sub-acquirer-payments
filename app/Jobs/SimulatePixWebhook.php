@@ -21,7 +21,7 @@ class SimulatePixWebhook implements ShouldQueue
 
     public function handle(): void
     {
-        $transaction = PixTransaction::find($this->transactionId);
+        $transaction = PixTransaction::with('subacquirer')->find($this->transactionId);
 
         if (!$transaction) {
             Log::warning('PIX Transaction not found for webhook simulation', [
@@ -41,12 +41,7 @@ class SimulatePixWebhook implements ShouldQueue
         $delay = rand(5, 10);
         sleep($delay);
 
-        $webhookData = [
-            'transaction_id' => $transaction->external_id ?? $transaction->transaction_id,
-            'status' => PixTransaction::STATUS_CONFIRMED,
-            'confirmed_at' => now()->toIso8601String(),
-            'simulated' => true,
-        ];
+        $webhookData = $this->generateWebhookPayload($transaction);
 
         $transaction->update([
             'webhook_data' => $webhookData,
@@ -57,8 +52,46 @@ class SimulatePixWebhook implements ShouldQueue
         Log::info('PIX Webhook simulated successfully', [
             'transaction_id' => $transaction->id,
             'external_id' => $transaction->external_id,
+            'subacquirer' => $transaction->subacquirer->code,
             'webhook_data' => $webhookData,
         ]);
+    }
+
+    private function generateWebhookPayload(PixTransaction $transaction): array
+    {
+        $subacquirer = $transaction->subacquirer;
+        
+        if ($subacquirer->code === 'subadqa') {
+            return [
+                'event' => 'pix_payment_confirmed',
+                'transaction_id' => $transaction->external_id ?? $transaction->transaction_id,
+                'pix_id' => 'PIX' . strtoupper(substr(uniqid(), -9)),
+                'status' => 'CONFIRMED',
+                'amount' => (float) $transaction->amount,
+                'payer_name' => 'João da Silva',
+                'payer_cpf' => '12345678900',
+                'payment_date' => now()->toIso8601String(),
+                'metadata' => [
+                    'source' => 'SubadqA',
+                    'environment' => 'sandbox'
+                ]
+            ];
+        } else {
+            return [
+                'type' => 'pix.status_update',
+                'data' => [
+                    'id' => $transaction->external_id ?? 'PX' . strtoupper(substr(uniqid(), -9)),
+                    'status' => 'PAID',
+                    'value' => (float) $transaction->amount,
+                    'payer' => [
+                        'name' => 'Maria Oliveira',
+                        'document' => '98765432100'
+                    ],
+                    'confirmed_at' => now()->toIso8601String()
+                ],
+                'signature' => bin2hex(random_bytes(6))
+            ];
+        }
     }
 
     public function failed(\Throwable $exception): void

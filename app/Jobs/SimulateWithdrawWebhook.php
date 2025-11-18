@@ -21,7 +21,7 @@ class SimulateWithdrawWebhook implements ShouldQueue
 
     public function handle(): void
     {
-        $transaction = WithdrawTransaction::find($this->transactionId);
+        $transaction = WithdrawTransaction::with('subacquirer')->find($this->transactionId);
 
         if (!$transaction) {
             Log::warning('Withdraw Transaction not found for webhook simulation', [
@@ -41,12 +41,7 @@ class SimulateWithdrawWebhook implements ShouldQueue
         $delay = rand(5, 10);
         sleep($delay);
 
-        $webhookData = [
-            'transaction_id' => $transaction->external_id ?? $transaction->transaction_id,
-            'status' => WithdrawTransaction::STATUS_PAID,
-            'paid_at' => now()->toIso8601String(),
-            'simulated' => true,
-        ];
+        $webhookData = $this->generateWebhookPayload($transaction);
 
         $transaction->update([
             'webhook_data' => $webhookData,
@@ -57,8 +52,46 @@ class SimulateWithdrawWebhook implements ShouldQueue
         Log::info('Withdraw Webhook simulated successfully', [
             'transaction_id' => $transaction->id,
             'external_id' => $transaction->external_id,
+            'subacquirer' => $transaction->subacquirer->code,
             'webhook_data' => $webhookData,
         ]);
+    }
+
+    private function generateWebhookPayload(WithdrawTransaction $transaction): array
+    {
+        $subacquirer = $transaction->subacquirer;
+        
+        if ($subacquirer->code === 'subadqa') {
+            return [
+                'event' => 'withdraw_completed',
+                'withdraw_id' => $transaction->external_id ?? 'WD' . strtoupper(substr(uniqid(), -9)),
+                'transaction_id' => $transaction->transaction_id,
+                'status' => 'SUCCESS',
+                'amount' => (float) $transaction->amount,
+                'requested_at' => $transaction->created_at->toIso8601String(),
+                'completed_at' => now()->toIso8601String(),
+                'metadata' => [
+                    'source' => 'SubadqA',
+                    'destination_bank' => 'Itaú'
+                ]
+            ];
+        } else {
+            return [
+                'type' => 'withdraw.status_update',
+                'data' => [
+                    'id' => $transaction->external_id ?? 'WDX' . strtoupper(substr(uniqid(), -5)),
+                    'status' => 'DONE',
+                    'amount' => (float) $transaction->amount,
+                    'bank_account' => [
+                        'bank' => 'Nubank',
+                        'agency' => $transaction->agency,
+                        'account' => $transaction->account
+                    ],
+                    'processed_at' => now()->toIso8601String()
+                ],
+                'signature' => bin2hex(random_bytes(6))
+            ];
+        }
     }
 
     public function failed(\Throwable $exception): void

@@ -26,15 +26,20 @@ class GenericSubacquirer implements SubacquirerInterface
         return $this->subacquirer->base_url;
     }
 
-    public function processPix(array $data): array
+    public function processPix(array $data, bool $simulateSuccess = true): array
     {
-        $url = rtrim($this->getBaseUrl(), '/') . '/pix';
+        $url = rtrim($this->getBaseUrl(), '/') . '/pix/create';
+
+        $mockResponse = $simulateSuccess 
+            ? '[SUCESSO_PIX] pix_create' 
+            : '[ERRO_PIX] pix_create';
 
         try {
             $response = Http::timeout(30)
                 ->withHeaders([
                     'Content-Type' => 'application/json',
                     'Accept' => 'application/json',
+                    'x-mock-response-name' => $mockResponse,
                 ])
                 ->post($url, $data);
 
@@ -46,6 +51,7 @@ class GenericSubacquirer implements SubacquirerInterface
                 'request' => $data,
                 'response' => $responseData,
                 'status' => $response->status(),
+                'mock_response' => $mockResponse,
             ]);
 
             if (!$response->successful()) {
@@ -72,15 +78,20 @@ class GenericSubacquirer implements SubacquirerInterface
         }
     }
 
-    public function processWithdraw(array $data): array
+    public function processWithdraw(array $data, bool $simulateSuccess = true): array
     {
         $url = rtrim($this->getBaseUrl(), '/') . '/withdraw';
+
+        $mockResponse = $simulateSuccess 
+            ? '[SUCESSO_WD] withdraw' 
+            : '[ERROW_WD] withdraw';
 
         try {
             $response = Http::timeout(30)
                 ->withHeaders([
                     'Content-Type' => 'application/json',
                     'Accept' => 'application/json',
+                    'x-mock-response-name' => $mockResponse,
                 ])
                 ->post($url, $data);
 
@@ -92,6 +103,7 @@ class GenericSubacquirer implements SubacquirerInterface
                 'request' => $data,
                 'response' => $responseData,
                 'status' => $response->status(),
+                'mock_response' => $mockResponse,
             ]);
 
             if (!$response->successful()) {
@@ -118,4 +130,3 @@ class GenericSubacquirer implements SubacquirerInterface
         }
     }
 }
-
