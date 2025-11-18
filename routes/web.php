@@ -18,7 +18,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-Route::prefix('client-area')->name('client-area.')->group(function () {
+Route::middleware('auth')->prefix('client-area')->name('client-area.')->group(function () {
     Route::get('/', [ClientAreaController::class, 'index'])->name('index');
     Route::get('/pix/create', [ClientAreaController::class, 'createPix'])->name('pix.create');
     Route::post('/pix', [ClientAreaController::class, 'storePix'])->name('pix.store');

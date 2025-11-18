@@ -29,7 +29,7 @@
         <div class="mb-4 sm:mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
             <h2 class="text-xl sm:text-2xl font-semibold text-gray-800">Transações</h2>
             <div class="flex flex-row gap-2 sm:gap-3 ml-auto">
-                <a href="{{ route('client-area.pix.create') }}" class="inline-flex items-center justify-center bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-semibold py-2 px-4 rounded-md shadow-sm transition-colors text-sm whitespace-nowrap">
+                <a href="{{ route('client-area.pix.create') }}" class="inline-flex items-center justify-center !bg-gray-700 hover:!bg-gray-800 active:!bg-gray-900 text-white font-semibold py-2 px-4 rounded-md shadow-sm transition-colors text-sm whitespace-nowrap">
                     Novo Pix
                 </a>
                 <a href="{{ route('client-area.withdraw.create') }}" class="inline-flex items-center justify-center bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold py-2 px-4 rounded-md shadow-sm transition-colors text-sm whitespace-nowrap">

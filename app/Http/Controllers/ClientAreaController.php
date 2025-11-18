@@ -2,24 +2,37 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\SimulatePixWebhook;
+use App\Jobs\SimulateWithdrawWebhook;
 use App\Models\PixTransaction;
 use App\Models\Subacquirer;
 use App\Models\WithdrawTransaction;
+use App\Services\SubacquirerService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class ClientAreaController extends Controller
 {
+    public function __construct(
+        protected SubacquirerService $subacquirerService
+    ) {
+    }
+
     public function index()
     {
-        $pixTransactions = PixTransaction::with('subacquirer')
+        $user = auth()->user();
+        
+        $pixTransactions = PixTransaction::where('user_id', $user->id)
+            ->with('subacquirer')
             ->latest()
-            ->paginate(10, ['*'], 'pix_page');
+            ->paginate(5, ['*'], 'pixPage');
 
-        $withdrawTransactions = WithdrawTransaction::with('subacquirer')
+        $withdrawTransactions = WithdrawTransaction::where('user_id', $user->id)
+            ->with('subacquirer')
             ->latest()
-            ->paginate(10, ['*'], 'withdraw_page');
+            ->paginate(5, ['*'], 'withdrawPage');
 
         return view('client-area.index', compact('pixTransactions', 'withdrawTransactions'));
     }
@@ -87,86 +100,146 @@ class ClientAreaController extends Controller
 
     private function processPix(Request $request, Subacquirer $subacquirer)
     {
-        $data = [
-            'transaction_id' => 'PIX-' . strtoupper(uniqid()) . '-' . time(),
-            'amount' => $request->amount,
-            'pix_key' => $request->pix_key,
-            'pix_key_type' => $request->pix_key_type,
-            'description' => $request->description,
-        ];
-
         try {
-            $url = rtrim($subacquirer->base_url, '/') . '/pix/create';
-            $response = Http::timeout(30)
-                ->withHeaders([
-                    'Content-Type' => 'application/json',
-                    'Accept' => 'application/json',
-                    'x-mock-response-name' => '[SUCESSO_PIX] pix_create',
-                ])
-                ->post($url, $data);
+            $user = auth()->user();
+            $implementation = $this->subacquirerService->getImplementation($subacquirer);
+            $transactionId = 'PIX-' . Str::upper(Str::random(16)) . '-' . time();
 
-            $responseData = $response->json();
+            $requestData = [
+                'transaction_id' => $transactionId,
+                'amount' => $request->amount,
+                'pix_key' => $request->pix_key,
+                'pix_key_type' => $request->pix_key_type,
+                'description' => $request->description ?? null,
+            ];
 
-            Log::info("Client Area PIX Request", [
-                'subacquirer' => $subacquirer->code,
-                'url' => $url,
-                'request' => $data,
-                'response' => $responseData,
+            $transaction = DB::transaction(function () use ($user, $subacquirer, $transactionId, $request, $requestData) {
+                return PixTransaction::create([
+                    'user_id' => $user->id,
+                    'subacquirer_id' => $subacquirer->id,
+                    'transaction_id' => $transactionId,
+                    'amount' => $request->amount,
+                    'pix_key' => $request->pix_key,
+                    'pix_key_type' => $request->pix_key_type,
+                    'status' => PixTransaction::STATUS_PENDING,
+                    'description' => $request->description ?? null,
+                    'request_data' => $requestData,
+                ]);
+            });
+
+            $response = $implementation->processPix($requestData);
+
+            $transaction->update([
+                'response_data' => $response,
+                'external_id' => $response['external_id'] ?? null,
             ]);
 
-            if ($response->successful()) {
-                return redirect()->route('client-area.index')
-                    ->with('success', 'Transação PIX processada com sucesso!');
+            if (!$response['success']) {
+                $transaction->update(['status' => PixTransaction::STATUS_FAILED]);
+                
+                Log::error('Client Area PIX Transaction Failed', [
+                    'transaction_id' => $transactionId,
+                    'user_id' => $user->id,
+                    'subacquirer' => $subacquirer->code,
+                    'error' => $response['error'] ?? 'Unknown error',
+                ]);
+
+                return back()->with('error', 'Erro ao processar transação PIX: ' . ($response['error'] ?? 'Erro desconhecido'))->withInput();
             }
 
-            return back()->with('error', 'Erro ao processar transação PIX: ' . ($responseData['message'] ?? 'Erro desconhecido'))->withInput();
+            SimulatePixWebhook::dispatch($transaction->id)->delay(now()->addSeconds(rand(5, 10)));
+
+            Log::info('Client Area PIX Transaction Created', [
+                'transaction_id' => $transactionId,
+                'user_id' => $user->id,
+                'subacquirer' => $subacquirer->code,
+            ]);
+
+            return redirect()->route('client-area.index')
+                ->with('success', 'Transação PIX criada com sucesso! O webhook será processado em alguns segundos.');
         } catch (\Exception $e) {
-            Log::error('Client Area PIX Error', ['error' => $e->getMessage()]);
+            Log::error('Client Area PIX Error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             return back()->with('error', 'Erro ao processar transação: ' . $e->getMessage())->withInput();
         }
     }
 
     private function processWithdraw(Request $request, Subacquirer $subacquirer)
     {
-        $data = [
-            'transaction_id' => 'WD-' . strtoupper(uniqid()) . '-' . time(),
-            'amount' => $request->amount,
-            'bank_code' => $request->bank_code,
-            'agency' => $request->agency,
-            'account' => $request->account,
-            'account_type' => $request->account_type,
-            'account_holder_name' => $request->account_holder_name,
-            'account_holder_document' => $request->account_holder_document,
-            'description' => $request->description,
-        ];
-
         try {
-            $url = rtrim($subacquirer->base_url, '/') . '/withdraw';
-            $response = Http::timeout(30)
-                ->withHeaders([
-                    'Content-Type' => 'application/json',
-                    'Accept' => 'application/json',
-                    'x-mock-response-name' => '[SUCESSO_WD] withdraw',
-                ])
-                ->post($url, $data);
+            $user = auth()->user();
+            $implementation = $this->subacquirerService->getImplementation($subacquirer);
+            $transactionId = 'WD-' . Str::upper(Str::random(16)) . '-' . time();
 
-            $responseData = $response->json();
+            $requestData = [
+                'transaction_id' => $transactionId,
+                'amount' => $request->amount,
+                'bank_code' => $request->bank_code,
+                'agency' => $request->agency,
+                'account' => $request->account,
+                'account_type' => $request->account_type,
+                'account_holder_name' => $request->account_holder_name,
+                'account_holder_document' => $request->account_holder_document,
+                'description' => $request->description ?? null,
+            ];
 
-            Log::info("Client Area Withdraw Request", [
-                'subacquirer' => $subacquirer->code,
-                'url' => $url,
-                'request' => $data,
-                'response' => $responseData,
+            $transaction = DB::transaction(function () use ($user, $subacquirer, $transactionId, $request, $requestData) {
+                return WithdrawTransaction::create([
+                    'user_id' => $user->id,
+                    'subacquirer_id' => $subacquirer->id,
+                    'transaction_id' => $transactionId,
+                    'amount' => $request->amount,
+                    'bank_code' => $request->bank_code,
+                    'agency' => $request->agency,
+                    'account' => $request->account,
+                    'account_type' => $request->account_type,
+                    'account_holder_name' => $request->account_holder_name,
+                    'account_holder_document' => $request->account_holder_document,
+                    'status' => WithdrawTransaction::STATUS_PENDING,
+                    'description' => $request->description ?? null,
+                    'request_data' => $requestData,
+                ]);
+            });
+
+            $response = $implementation->processWithdraw($requestData);
+
+            $transaction->update([
+                'response_data' => $response,
+                'external_id' => $response['external_id'] ?? null,
             ]);
 
-            if ($response->successful()) {
-                return redirect()->route('client-area.index')
-                    ->with('success', 'Transação de Saque processada com sucesso!');
+            if (!$response['success']) {
+                $transaction->update(['status' => WithdrawTransaction::STATUS_FAILED]);
+                
+                Log::error('Client Area Withdraw Transaction Failed', [
+                    'transaction_id' => $transactionId,
+                    'user_id' => $user->id,
+                    'subacquirer' => $subacquirer->code,
+                    'error' => $response['error'] ?? 'Unknown error',
+                ]);
+
+                return back()->with('error', 'Erro ao processar transação de Saque: ' . ($response['error'] ?? 'Erro desconhecido'))->withInput();
             }
 
-            return back()->with('error', 'Erro ao processar transação de Saque: ' . ($responseData['message'] ?? 'Erro desconhecido'))->withInput();
+            SimulateWithdrawWebhook::dispatch($transaction->id)->delay(now()->addSeconds(rand(5, 10)));
+
+            Log::info('Client Area Withdraw Transaction Created', [
+                'transaction_id' => $transactionId,
+                'user_id' => $user->id,
+                'subacquirer' => $subacquirer->code,
+            ]);
+
+            return redirect()->route('client-area.index')
+                ->with('success', 'Transação de Saque criada com sucesso! O webhook será processado em alguns segundos.');
         } catch (\Exception $e) {
-            Log::error('Client Area Withdraw Error', ['error' => $e->getMessage()]);
+            Log::error('Client Area Withdraw Error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             return back()->with('error', 'Erro ao processar transação: ' . $e->getMessage())->withInput();
         }
     }
