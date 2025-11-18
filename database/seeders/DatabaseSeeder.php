@@ -25,23 +25,40 @@ class DatabaseSeeder extends Seeder
         $subacquirerA = \App\Models\Subacquirer::where('code', 'subadqa')->first();
         $subacquirerB = \App\Models\Subacquirer::where('code', 'subadqb')->first();
 
-        User::factory()->create([
-            'name' => 'Test User A',
-            'email' => 'testa@example.com',
-            'subacquirer_id' => $subacquirerA?->id,
-        ]);
+        User::updateOrCreate(
+            ['email' => 'clientea@example.com'],
+            [
+                'name' => 'Cliente A',
+                'subacquirer_id' => $subacquirerA?->id,
+                'password' => Hash::make('password'),
+            ]
+        );
 
-        User::factory()->create([
-            'name' => 'Test User B',
-            'email' => 'testb@example.com',
-            'subacquirer_id' => $subacquirerB?->id,
-        ]);
+        User::updateOrCreate(
+            ['email' => 'clienteb@example.com'],
+            [
+                'name' => 'Cliente B',
+                'subacquirer_id' => $subacquirerB?->id,
+                'password' => Hash::make('password'),
+            ]
+        );
 
-        User::factory()->create([
-            'name' => 'Admin User',
-            'email' => 'admin@super.com',
-            'password' => Hash::make('Admin@123'),
-            'subacquirer_id' => null,
-        ]);
+        User::updateOrCreate(
+            ['email' => 'clientec@example.com'],
+            [
+                'name' => 'Cliente C',
+                'subacquirer_id' => $subacquirerA?->id,
+                'password' => Hash::make('password'),
+            ]
+        );
+
+        User::updateOrCreate(
+            ['email' => 'admin@super.com'],
+            [
+                'name' => 'Admin User',
+                'password' => Hash::make('Admin@123'),
+                'subacquirer_id' => null,
+            ]
+        );
     }
 }

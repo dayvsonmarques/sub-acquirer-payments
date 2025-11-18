@@ -20,6 +20,10 @@ Route::middleware('auth')->group(function () {
 
 Route::prefix('client-area')->name('client-area.')->group(function () {
     Route::get('/', [ClientAreaController::class, 'index'])->name('index');
+    Route::get('/pix/create', [ClientAreaController::class, 'createPix'])->name('pix.create');
+    Route::post('/pix', [ClientAreaController::class, 'storePix'])->name('pix.store');
+    Route::get('/withdraw/create', [ClientAreaController::class, 'createWithdraw'])->name('withdraw.create');
+    Route::post('/withdraw', [ClientAreaController::class, 'storeWithdraw'])->name('withdraw.store');
     Route::post('/process', [ClientAreaController::class, 'processTransaction'])->name('process');
 });
 

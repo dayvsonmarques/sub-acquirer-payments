@@ -31,7 +31,7 @@ class WithdrawTransactionFactory extends Factory
             'subacquirer_id' => Subacquirer::factory(),
             'transaction_id' => 'WD-' . strtoupper(fake()->bothify('########')) . '-' . time(),
             'external_id' => fake()->optional()->bothify('EXT-########'),
-            'amount' => fake()->randomFloat(2, 50, 50000),
+            'amount' => fake()->randomFloat(2, 50, 999.99),
             'bank_code' => fake()->numerify('###'),
             'agency' => fake()->numerify('####'),
             'account' => fake()->numerify('#####-#'),
@@ -42,7 +42,7 @@ class WithdrawTransactionFactory extends Factory
             'description' => fake()->optional()->sentence(),
             'request_data' => [
                 'transaction_id' => 'WD-' . strtoupper(fake()->bothify('########')),
-                'amount' => fake()->randomFloat(2, 50, 50000),
+                'amount' => fake()->randomFloat(2, 50, 999.99),
                 'bank_code' => fake()->numerify('###'),
                 'agency' => fake()->numerify('####'),
                 'account' => fake()->numerify('#####-#'),

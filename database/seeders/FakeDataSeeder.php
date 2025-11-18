@@ -18,29 +18,34 @@ class FakeDataSeeder extends Seeder
             throw new \Exception('SubadqA e SubadqB devem existir antes de executar este seeder. Execute o SubacquirerSeeder primeiro.');
         }
 
-        $users = User::factory()
-            ->count(20)
-            ->create()
-            ->each(function ($user) use ($subacquirers) {
-                $user->update([
-                    'subacquirer_id' => $subacquirers->random()->id,
-                ]);
-            });
+        $users = User::whereNotNull('subacquirer_id')->get();
 
-        foreach ($users as $user) {
-            PixTransaction::factory()
-                ->count(fake()->numberBetween(5, 15))
-                ->create([
+        if ($users->count() < 3) {
+            throw new \Exception('É necessário ter pelo menos 3 usuários com subadquirente. Execute o DatabaseSeeder primeiro.');
+        }
+
+        $clients = $users->take(3);
+
+        foreach ($clients as $user) {
+            $existingPixCount = PixTransaction::where('user_id', $user->id)->count();
+            $existingWithdrawCount = WithdrawTransaction::where('user_id', $user->id)->count();
+            
+            $pixToCreate = max(0, 3 - $existingPixCount);
+            $withdrawToCreate = max(0, 3 - $existingWithdrawCount);
+            
+            if ($pixToCreate > 0) {
+                PixTransaction::factory()->count($pixToCreate)->create([
                     'user_id' => $user->id,
                     'subacquirer_id' => $user->subacquirer_id,
                 ]);
-
-            WithdrawTransaction::factory()
-                ->count(fake()->numberBetween(3, 10))
-                ->create([
+            }
+            
+            if ($withdrawToCreate > 0) {
+                WithdrawTransaction::factory()->count($withdrawToCreate)->create([
                     'user_id' => $user->id,
                     'subacquirer_id' => $user->subacquirer_id,
                 ]);
+            }
         }
 
         $this->command->info('Fake data generated successfully!');

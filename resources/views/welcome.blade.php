@@ -24,8 +24,8 @@
                 </div>
             </div>
         </nav>
-        <div class="flex items-center justify-center min-h-[calc(100vh-4rem)]">
-            <h2 class="text-4xl font-semibold text-gray-800">Pix / Saques Payload</h2>
+        <div class="flex items-center justify-center px-4" style="min-height: calc(100vh - 4rem);">
+            <h2 class="text-2xl sm:text-3xl lg:text-4xl font-semibold text-gray-800 text-center">Pix / Saques Payload</h2>
         </div>
     </body>
 </html>
