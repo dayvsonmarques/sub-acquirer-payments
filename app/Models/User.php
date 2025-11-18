@@ -4,6 +4,8 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -21,6 +23,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'subacquirer_id',
     ];
 
     /**
@@ -44,5 +47,29 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * Get the subacquirer assigned to this user
+     */
+    public function subacquirer(): BelongsTo
+    {
+        return $this->belongsTo(Subacquirer::class);
+    }
+
+    /**
+     * Get all PIX transactions for this user
+     */
+    public function pixTransactions(): HasMany
+    {
+        return $this->hasMany(PixTransaction::class);
+    }
+
+    /**
+     * Get all withdraw transactions for this user
+     */
+    public function withdrawTransactions(): HasMany
+    {
+        return $this->hasMany(WithdrawTransaction::class);
     }
 }
