@@ -70,17 +70,51 @@ php artisan serve
 
 ## 🔐 Autenticação
 
-O sistema usa Laravel Sanctum para autenticação via API. Para obter um token:
+O sistema usa Laravel Sanctum para autenticação via API. Para obter um token, faça uma requisição POST para `/api/login`:
 
 ```bash
-# Criar um token para o usuário
-php artisan tinker
+curl -X POST http://localhost:8000/api/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "clientea@example.com",
+    "password": "password"
+  }'
 ```
 
-```php
-$user = \App\Models\User::where('email', 'testa@example.com')->first();
-$token = $user->createToken('api-token')->plainTextToken;
-echo $token;
+**Resposta:**
+```json
+{
+  "success": true,
+  "message": "Authentication successful",
+  "data": {
+    "token": "1|abcdef1234567890",
+    "user": {
+      "id": 1,
+      "name": "Cliente A",
+      "email": "clientea@example.com"
+    }
+  }
+}
+```
+
+**Usuários de teste disponíveis:**
+- `clientea@example.com` / `password` (SubadqA)
+- `clienteb@example.com` / `password` (SubadqB)
+- `clientec@example.com` / `password` (SubadqA)
+- `admin@super.com` / `Admin@123` (Admin)
+
+**Usando o token:**
+Inclua o token no header `Authorization` de todas as requisições protegidas:
+
+```bash
+curl -X POST http://localhost:8000/api/pix \
+  -H "Authorization: Bearer 1|abcdef1234567890" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": 100.50,
+    "pix_key": "12345678900",
+    "pix_key_type": "cpf"
+  }'
 ```
 
 ## 📡 Endpoints da API
