@@ -12,356 +12,84 @@ Sistema de integração com subadquirentes de pagamento (gateways de PIX e saque
 
 ## 🚀 Instalação
 
-1. **Clone o repositório e instale as dependências:**
+1. Clone o repositório e instale as dependências: `composer install`
 
-```bash
-composer install
-```
+2. Configure o arquivo `.env` com as credenciais do banco de dados e `QUEUE_CONNECTION=database`
 
-2. **Configure o arquivo `.env`:**
+3. Execute as migrations: `php artisan migrate`
 
-Copie o arquivo `.env.example` para `.env` e configure:
+4. Execute os seeders: `php artisan db:seed`
 
-```env
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=laravel
-DB_USERNAME=root
-DB_PASSWORD=
+   Isso criará:
+   - SubadqA e SubadqB (subadquirentes)
+   - 3 usuários clientes (clientea@example.com, clienteb@example.com, clientec@example.com)
+   - 1 usuário admin (admin@super.com / Admin@123)
 
-QUEUE_CONNECTION=database
-```
+5. Gere a chave da aplicação: `php artisan key:generate`
 
-3. **Execute as migrations:**
+6. Inicie o servidor de filas: `php artisan queue:work`
 
-```bash
-php artisan migrate
-```
-
-4. **Execute os seeders para popular os subadquirentes:**
-
-```bash
-php artisan db:seed
-```
-
-Isso criará:
-- SubadqA (https://0acdeaee-1729-4d55-80eb-d54a125e5e18.mock.pstmn.io)
-- SubadqB (https://ef8513c8-fd99-4081-8963-573cd135e133.mock.pstmn.io)
-- 2 usuários de teste (testa@example.com e testb@example.com)
-
-5. **Gere a chave da aplicação (se necessário):**
-
-```bash
-php artisan key:generate
-```
-
-6. **Inicie o servidor de filas (para processar webhooks):**
-
-```bash
-php artisan queue:work
-```
-
-7. **Inicie o servidor de desenvolvimento:**
-
-```bash
-php artisan serve
-```
+7. Inicie o servidor: `php artisan serve`
 
 ## 🔐 Autenticação
 
-O sistema usa Laravel Sanctum para autenticação via API. Para obter um token, faça uma requisição POST para `/api/login`:
+O sistema usa Laravel Sanctum para autenticação via API. 
 
-```bash
-curl -X POST http://localhost:8000/api/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "clientea@example.com",
-    "password": "password"
-  }'
-```
+**Endpoint:** `POST /api/login`
 
-**Resposta:**
-```json
-{
-  "success": true,
-  "message": "Authentication successful",
-  "data": {
-    "token": "1|abcdef1234567890",
-    "user": {
-      "id": 1,
-      "name": "Cliente A",
-      "email": "clientea@example.com"
-    }
-  }
-}
-```
-
-**Usuários de teste disponíveis:**
+**Usuários de teste:**
 - `clientea@example.com` / `password` (SubadqA)
 - `clienteb@example.com` / `password` (SubadqB)
 - `clientec@example.com` / `password` (SubadqA)
 - `admin@super.com` / `Admin@123` (Admin)
 
-**Usando o token:**
-Inclua o token no header `Authorization` de todas as requisições protegidas:
+Use o token retornado no header `Authorization: Bearer {token}` para requisições protegidas.
 
-```bash
-curl -X POST http://localhost:8000/api/pix \
-  -H "Authorization: Bearer 1|abcdef1234567890" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "amount": 100.50,
-    "pix_key": "12345678900",
-    "pix_key_type": "cpf"
-  }'
-```
+## 📡 API Endpoints
 
-## 📡 Endpoints da API
+**Base URL:** `http://localhost:8000/api`
 
-### Base URL
-```
-http://localhost:8000/api
-```
+### Documentação Swagger/OpenAPI
 
-### 📚 Documentação Swagger/OpenAPI
+Acesse a documentação interativa em: `http://localhost:8000/api/documentation`
 
-A documentação interativa da API está disponível em:
+A documentação inclui todos os endpoints, exemplos de requisições/respostas, validações e permite testar diretamente no navegador.
 
-```
-http://localhost:8000/api/documentation
-```
+Para regenerar após alterações: `php artisan l5-swagger:generate`
 
-A documentação Swagger inclui:
-- Descrição completa de todos os endpoints
-- Exemplos de requisições e respostas
-- Esquemas de validação
-- Autenticação Bearer Token
-- Teste interativo dos endpoints
+### Endpoints Disponíveis
 
-Para regenerar a documentação após alterações:
+- **POST** `/api/login` - Autenticação e obtenção de token
+- **POST** `/api/logout` - Revogar token atual
+- **POST** `/api/pix` - Criar transação PIX
+- **POST** `/api/withdraw` - Criar transação de saque
 
-```bash
-php artisan l5-swagger:generate
-```
-
-### 1. Criar Transação PIX
-
-**POST** `/api/pix`
-
-**Headers:**
-```
-Authorization: Bearer {token}
-Content-Type: application/json
-```
-
-**Body:**
-```json
-{
-    "amount": 100.50,
-    "pix_key": "12345678900",
-    "pix_key_type": "cpf",
-    "description": "Pagamento de teste"
-}
-```
-
-**Tipos de chave PIX aceitos:**
-- `cpf`
-- `email`
-- `phone`
-- `random`
-
-**Resposta de sucesso (201):**
-```json
-{
-    "success": true,
-    "message": "PIX transaction created successfully",
-    "data": {
-        "transaction_id": "PIX-XXXXXXXX-1234567890",
-        "external_id": "ext-123",
-        "status": "PENDING",
-        "amount": "100.50",
-        "created_at": "2025-11-17T21:00:00.000000Z"
-    }
-}
-```
-
-### 2. Criar Transação de Saque
-
-**POST** `/api/withdraw`
-
-**Headers:**
-```
-Authorization: Bearer {token}
-Content-Type: application/json
-```
-
-**Body:**
-```json
-{
-    "amount": 500.00,
-    "bank_code": "001",
-    "agency": "1234",
-    "account": "56789",
-    "account_type": "checking",
-    "account_holder_name": "João Silva",
-    "account_holder_document": "12345678900",
-    "description": "Saque de teste"
-}
-```
-
-**Tipos de conta aceitos:**
-- `checking` (conta corrente)
-- `savings` (conta poupança)
-
-**Resposta de sucesso (201):**
-```json
-{
-    "success": true,
-    "message": "Withdraw transaction created successfully",
-    "data": {
-        "transaction_id": "WD-XXXXXXXX-1234567890",
-        "external_id": "ext-456",
-        "status": "PENDING",
-        "amount": "500.00",
-        "created_at": "2025-11-17T21:00:00.000000Z"
-    }
-}
-```
-
-## 📝 Exemplos de Uso
-
-### cURL - Criar Transação PIX
-
-```bash
-curl -X POST http://localhost:8000/api/pix \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "amount": 100.50,
-    "pix_key": "12345678900",
-    "pix_key_type": "cpf",
-    "description": "Pagamento de teste"
-  }'
-```
-
-### cURL - Criar Transação de Saque
-
-```bash
-curl -X POST http://localhost:8000/api/withdraw \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "amount": 500.00,
-    "bank_code": "001",
-    "agency": "1234",
-    "account": "56789",
-    "account_type": "checking",
-    "account_holder_name": "João Silva",
-    "account_holder_document": "12345678900",
-    "description": "Saque de teste"
-  }'
-```
-
-### Postman Collection
-
-Você pode importar a collection do Postman usando os exemplos acima.
-
-### Swagger UI
-
-Acesse a documentação interativa Swagger em: `http://localhost:8000/api/documentation`
-
-A interface Swagger permite:
-- Visualizar todos os endpoints disponíveis
-- Testar requisições diretamente no navegador
-- Ver exemplos de requisições e respostas
-- Autenticar usando Bearer Token
-- Validar esquemas de dados
+Todos os endpoints (exceto login) requerem autenticação via Bearer Token.
 
 ## 🔄 Fluxo de Transação
 
-1. **Usuário solicita PIX/Saque** via API
-2. **Sistema identifica** o subadquirente do usuário
-3. **Envia requisição** para API mock do subadquirente
-4. **Registra transação** com status `PENDING`
-5. **Dispara Job** para simular webhook após 5-10 segundos
-6. **Webhook atualiza** status para `CONFIRMED`/`PAID`
+1. Usuário solicita PIX/Saque via API
+2. Sistema identifica o subadquirente do usuário
+3. Envia requisição para API mock do subadquirente
+4. Registra transação com status `PENDING`
+5. Dispara Job para simular webhook após 5-10 segundos
+6. Webhook atualiza status para `CONFIRMED`/`PAID`
 
 ## 🏗️ Arquitetura
 
-### Estrutura de Diretórios
+### Estrutura Principal
 
-```
-app/
-├── Contracts/
-│   └── SubacquirerInterface.php      # Interface para subadquirentes
-├── Http/
-│   └── Controllers/
-│       └── Api/
-│           ├── PixController.php     # Controller para PIX
-│           └── WithdrawController.php # Controller para Saques
-├── Jobs/
-│   ├── SimulatePixWebhook.php         # Job para simular webhook PIX
-│   └── SimulateWithdrawWebhook.php    # Job para simular webhook Saque
-├── Models/
-│   ├── PixTransaction.php             # Model de transação PIX
-│   ├── Subacquirer.php                # Model de subadquirente
-│   ├── User.php                        # Model de usuário
-│   └── WithdrawTransaction.php        # Model de transação de saque
-├── Providers/
-│   └── SubacquirerServiceProvider.php # Service Provider
-└── Services/
-    ├── SubacquirerService.php          # Serviço principal
-    └── Subacquirers/
-        └── GenericSubacquirer.php     # Implementação genérica para todos os subadquirentes
-```
+- **Contracts/SubacquirerInterface.php** - Interface para subadquirentes
+- **Services/SubacquirerService.php** - Serviço principal de gerenciamento
+- **Services/Subacquirers/GenericSubacquirer.php** - Implementação genérica para todos os subadquirentes
+- **Jobs/** - Processamento assíncrono de webhooks
+- **Models/** - Models de transações, usuários e subadquirentes
 
 ### Extensibilidade
 
 O sistema usa uma implementação genérica (`GenericSubacquirer`) que funciona para todos os subadquirentes. SubadqA e SubadqB são apenas registros na tabela `subacquirers` com diferentes URLs de API.
 
-**Para adicionar um novo subadquirente:**
-
-1. **Adicionar registro no banco de dados** via seeder ou manualmente:
-
-```php
-Subacquirer::create([
-    'name' => 'SubadqC',
-    'code' => 'subadqc',
-    'base_url' => 'https://api.subadqc.com',
-    'is_active' => true,
-]);
-```
-
-2. **Se precisar de comportamento específico**, crie uma classe customizada:
-
-```php
-<?php
-
-namespace App\Services\Subacquirers;
-
-use App\Contracts\SubacquirerInterface;
-use App\Models\Subacquirer;
-
-class SpecialSubacquirer implements SubacquirerInterface
-{
-    // Implementação específica
-}
-```
-
-3. **Registrar no `SubacquirerService`**:
-
-```php
-public function getImplementation(Subacquirer $subacquirer): SubacquirerInterface
-{
-    $code = strtolower($subacquirer->code);
-    
-    return match ($code) {
-        'special_subacquirer' => new SpecialSubacquirer($subacquirer),
-        default => new GenericSubacquirer($subacquirer), // Genérico para todos
-    };
-}
-```
+Para adicionar um novo subadquirente, basta adicionar um registro na tabela `subacquirers`. Se precisar de comportamento específico, crie uma classe customizada implementando `SubacquirerInterface` e registre no `SubacquirerService`.
 
 ## 📊 Banco de Dados
 
@@ -375,97 +103,48 @@ public function getImplementation(Subacquirer $subacquirer): SubacquirerInterfac
 
 ### Status de Transações
 
-**PIX:**
-- `PENDING` - Aguardando confirmação
-- `CONFIRMED` - Confirmado
-- `FAILED` - Falhou
-- `CANCELLED` - Cancelado
+**PIX:** `PENDING`, `CONFIRMED`, `FAILED`, `CANCELLED`
 
-**Saque:**
-- `PENDING` - Aguardando pagamento
-- `PAID` - Pago
-- `FAILED` - Falhou
-- `CANCELLED` - Cancelado
+**Saque:** `PENDING`, `PAID`, `FAILED`, `CANCELLED`
 
-## 🔧 Configuração de Filas
+## 🔧 Configuração
 
-O sistema usa filas assíncronas para processar webhooks. Por padrão, está configurado para usar `database`.
+### Filas
 
-Para usar Redis (recomendado para produção):
+Por padrão, usa `database`. Para produção, recomenda-se Redis:
 
-1. Instale Redis
-2. Configure no `.env`:
-```env
-QUEUE_CONNECTION=redis
-REDIS_HOST=127.0.0.1
-REDIS_PASSWORD=null
-REDIS_PORT=6379
-```
+Configure no `.env`:
+- `QUEUE_CONNECTION=redis`
+- Configure `REDIS_HOST`, `REDIS_PORT`, etc.
 
-3. Instale o Horizon (opcional):
-```bash
-composer require laravel/horizon
-php artisan horizon:install
-```
+### Logging
 
-## 📝 Logging
-
-Todos os eventos importantes são registrados em logs:
-
+Todos os eventos importantes são registrados em `storage/logs/laravel.log`:
 - Requisições aos subadquirentes
 - Respostas dos subadquirentes
 - Processamento de webhooks
 - Erros e exceções
 
-Logs podem ser visualizados em `storage/logs/laravel.log`.
-
-## 🧪 Testes
-
-Para executar os testes:
-
-```bash
-php artisan test
-```
-
 ## 🚨 Tratamento de Erros
-
-O sistema possui tratamento robusto de erros:
 
 - Validação de dados de entrada
 - Tratamento de erros de API dos subadquirentes
-- Retry automático em caso de falha (3 tentativas com backoff exponencial: 5s, 10s, 30s)
+- Retry automático (3 tentativas com backoff exponencial: 5s, 10s, 30s)
 - Locks para evitar processamento duplicado de webhooks
-- Logging detalhado de erros
+- Logging detalhado
 
 ### Workaround para Postman Mock
 
-O sistema implementa um workaround para um problema conhecido do Postman Mock relacionado à validação de `amount`. Quando o mock retorna erro `invalid_amount` mesmo com valores válidos, o sistema:
-
-1. Detecta o erro específico `invalid_amount`
-2. Registra um warning no log indicando o problema do mock
-3. Simula uma resposta de sucesso como fallback
-4. Permite que a aplicação continue funcionando normalmente
-
-**Nota:** Este é um workaround temporário. Recomenda-se corrigir a configuração do Postman Mock ou usar um serviço de mock alternativo em produção.
-
-O sistema também utiliza o header `x-mock-response-name` para especificar qual resposta do mock deve ser retornada, conforme documentação do Postman.
+O sistema implementa um fallback para problemas conhecidos do Postman Mock (`invalid_amount` e `mockRequestNotFoundError`). Quando esses erros ocorrem, o sistema simula uma resposta de sucesso e registra um warning no log, permitindo que a aplicação continue funcionando.
 
 ## 📈 Performance
 
 - Suporta 3+ requisições/segundo
 - Processamento assíncrono de webhooks com delay configurável (5-10 segundos)
-- Jobs executados em fila dedicada (`webhooks`) para melhor isolamento
+- Jobs executados em fila dedicada (`webhooks`)
 - Locks distribuídos para evitar processamento duplicado
 - Retry exponencial para falhas temporárias
 - Índices otimizados no banco de dados
-- Cache de configurações quando aplicável
-
-### Otimizações Implementadas
-
-1. **Delay no Dispatch**: Os webhooks são agendados com delay aleatório (5-10s) no momento do dispatch, não bloqueando workers
-2. **Locks Distribuídos**: Uso de Cache locks para garantir que cada webhook seja processado apenas uma vez, mesmo em alta concorrência
-3. **Fila Dedicada**: Jobs de webhook executam em fila separada (`webhooks`) permitindo escalonamento independente
-4. **Retry Exponencial**: Backoff progressivo (5s → 10s → 30s) para tentativas de retry
 
 ## 🔒 Segurança
 
@@ -480,20 +159,6 @@ O sistema também utiliza o header `x-mock-response-name` para especificar qual 
 - [Laravel Sanctum](https://laravel.com/docs/sanctum)
 - [Laravel Queues](https://laravel.com/docs/queues)
 
-## 👥 Usuários de Teste
-
-Após executar o seeder, você terá:
-
-- **testa@example.com** - Usa SubadqA
-- **testb@example.com** - Usa SubadqB
-
-Senha padrão: `password`
-
-## 📞 Suporte
-
-Para dúvidas ou problemas, consulte a documentação do Laravel ou abra uma issue no repositório.
-
 ---
 
 Desenvolvido com ❤️ usando Laravel
-

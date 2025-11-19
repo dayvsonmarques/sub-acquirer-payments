@@ -8,7 +8,7 @@
 </head>
 <body class="min-h-screen bg-gray-100">
     <nav class="bg-white shadow-sm">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
                 <div class="flex-shrink-0">
                     <a href="{{ route('home') }}" class="text-xl font-semibold text-gray-800">Pix / Saques Payload</a>
@@ -25,11 +25,7 @@
         </div>
     </nav>
 
-    <div class="w-full mx-auto py-4 sm:py-8 px-2 sm:px-4 lg:px-8">
-        <div class="mb-4 sm:mb-6">
-            <h2 class="text-xl sm:text-2xl font-semibold text-gray-800">Transações</h2>
-        </div>
-
+    <div class="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         @if(session('success'))
             <div class="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded text-sm">
                 {{ session('success') }}
@@ -44,11 +40,8 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             <div class="bg-white shadow-sm rounded-lg overflow-hidden w-full">
-                <div class="px-3 sm:px-6 py-3 sm:py-4 bg-green-50 border-b border-green-200 flex justify-between items-center">
+                <div class="px-3 sm:px-6 py-3 sm:py-4 bg-green-50 border-b border-green-200">
                     <h3 class="text-base sm:text-lg font-semibold text-gray-800">Transações PIX</h3>
-                    <a href="{{ route('client-area.pix.create') }}" class="inline-flex items-center justify-center !bg-gray-700 hover:!bg-gray-800 active:!bg-gray-900 text-white font-semibold py-2 px-4 rounded-md shadow-sm transition-colors text-xs sm:text-sm whitespace-nowrap">
-                        Novo Pix
-                    </a>
                 </div>
                 <div class="overflow-x-auto w-full">
                     <table class="w-full min-w-full divide-y divide-gray-200">
@@ -91,11 +84,8 @@
             </div>
 
             <div class="bg-white shadow-sm rounded-lg overflow-hidden w-full">
-                <div class="px-3 sm:px-6 py-3 sm:py-4 bg-blue-50 border-b border-blue-200 flex justify-between items-center">
+                <div class="px-3 sm:px-6 py-3 sm:py-4 bg-blue-50 border-b border-blue-200">
                     <h3 class="text-base sm:text-lg font-semibold text-gray-800">Transações de Saque</h3>
-                    <a href="{{ route('client-area.withdraw.create') }}" class="inline-flex items-center justify-center bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold py-2 px-4 rounded-md shadow-sm transition-colors text-xs sm:text-sm whitespace-nowrap">
-                        Novo Saque
-                    </a>
                 </div>
                 <div class="overflow-x-auto w-full">
                     <table class="w-full min-w-full divide-y divide-gray-200">
