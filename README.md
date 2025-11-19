@@ -191,6 +191,20 @@ redis-cli ping
 
 **Nota:** Se preferir usar a extensão `phpredis` (mais rápida), instale a extensão PHP e configure `REDIS_CLIENT=phpredis`.
 
+### ✅ Rodar Redis via Docker
+
+Se não quiser instalar o Redis localmente:
+
+```bash
+docker compose up -d redis
+```
+
+O serviço expõe a porta `6379` (mapeada para `localhost`), então nenhuma alteração adicional no `.env` é necessária. Para parar:
+
+```bash
+docker compose down
+```
+
 **Configuração do Horizon:**
 
 O Horizon está configurado para:
