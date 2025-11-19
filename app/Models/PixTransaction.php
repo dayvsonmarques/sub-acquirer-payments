@@ -11,6 +11,7 @@ class PixTransaction extends Model
     use HasFactory;
 
     public const STATUS_PENDING = 'PENDING';
+    public const STATUS_PROCESSING = 'PROCESSING';
     public const STATUS_CONFIRMED = 'CONFIRMED';
     public const STATUS_FAILED = 'FAILED';
     public const STATUS_CANCELLED = 'CANCELLED';
@@ -52,6 +53,18 @@ class PixTransaction extends Model
     public function isPending(): bool
     {
         return $this->status === self::STATUS_PENDING;
+    }
+
+    public function isProcessing(): bool
+    {
+        return $this->status === self::STATUS_PROCESSING;
+    }
+
+    public function markAsProcessing(): void
+    {
+        $this->update([
+            'status' => self::STATUS_PROCESSING,
+        ]);
     }
 
     public function isConfirmed(): bool

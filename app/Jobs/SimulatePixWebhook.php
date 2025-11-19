@@ -2,7 +2,10 @@
 
 namespace App\Jobs;
 
+use App\Events\TransactionConfirmed;
 use App\Models\PixTransaction;
+use App\Models\WebhookAttempt;
+use App\Services\WebhookProcessor;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Cache;
@@ -17,7 +20,7 @@ class SimulatePixWebhook implements ShouldQueue
     
     public function backoff(): array
     {
-        return [5, 10, 30];
+        return config('webhooks.retry.backoff', [5, 10, 30]);
     }
 
     public function __construct(
@@ -26,11 +29,12 @@ class SimulatePixWebhook implements ShouldQueue
         $this->onQueue('webhooks');
     }
 
-    public function handle(): void
+    public function handle(WebhookProcessor $webhookProcessor): void
     {
         $lockKey = "pix_webhook_lock_{$this->transactionId}";
+        $lockTimeout = config('webhooks.lock.timeout', 30);
         
-        $lock = Cache::lock($lockKey, 30);
+        $lock = Cache::lock($lockKey, $lockTimeout);
         
         if (!$lock->get()) {
             Log::warning('PIX Webhook already being processed', [
@@ -49,7 +53,7 @@ class SimulatePixWebhook implements ShouldQueue
                 return;
             }
 
-            if (!$transaction->isPending()) {
+            if (!$transaction->isPending() && !$transaction->isProcessing()) {
                 Log::info('PIX Transaction already processed', [
                     'transaction_id' => $transaction->id,
                     'status' => $transaction->status,
@@ -57,59 +61,43 @@ class SimulatePixWebhook implements ShouldQueue
                 return;
             }
 
-            $webhookData = $this->generateWebhookPayload($transaction);
+            $webhookData = $webhookProcessor->generatePixWebhookPayload($transaction);
 
-            $transaction->update([
-                'webhook_data' => $webhookData,
-            ]);
-
-            $transaction->markAsConfirmed();
-
-            Log::info('PIX Webhook simulated successfully', [
+            $attempt = WebhookAttempt::create([
+                'transaction_type' => 'pix',
                 'transaction_id' => $transaction->id,
-                'external_id' => $transaction->external_id,
-                'subacquirer' => $transaction->subacquirer->code,
-                'webhook_data' => $webhookData,
+                'status' => WebhookAttempt::STATUS_PENDING,
+                'payload' => $webhookData,
+                'source' => WebhookAttempt::SOURCE_SIMULATION,
+                'attempt_number' => WebhookAttempt::where('transaction_type', 'pix')
+                    ->where('transaction_id', $transaction->id)
+                    ->count() + 1,
             ]);
+
+            $processed = $webhookProcessor->processPixWebhook($transaction, $webhookData);
+
+            if ($processed) {
+                $attempt->update([
+                    'status' => WebhookAttempt::STATUS_SUCCESS,
+                    'response' => ['processed' => true],
+                ]);
+
+                event(new TransactionConfirmed($transaction));
+
+                Log::info('PIX Webhook simulated successfully', [
+                    'transaction_id' => $transaction->id,
+                    'external_id' => $transaction->external_id,
+                    'subacquirer' => $transaction->subacquirer->code,
+                    'webhook_data' => $webhookData,
+                ]);
+            } else {
+                $attempt->update([
+                    'status' => WebhookAttempt::STATUS_FAILED,
+                    'error_message' => 'Transaction already processed',
+                ]);
+            }
         } finally {
             $lock->release();
-        }
-    }
-
-    private function generateWebhookPayload(PixTransaction $transaction): array
-    {
-        $subacquirer = $transaction->subacquirer;
-        
-        if ($subacquirer->code === 'subadqa') {
-            return [
-                'event' => 'pix_payment_confirmed',
-                'transaction_id' => $transaction->external_id ?? $transaction->transaction_id,
-                'pix_id' => 'PIX' . strtoupper(substr(uniqid(), -9)),
-                'status' => 'CONFIRMED',
-                'amount' => (float) $transaction->amount,
-                'payer_name' => 'João da Silva',
-                'payer_cpf' => '12345678900',
-                'payment_date' => now()->toIso8601String(),
-                'metadata' => [
-                    'source' => 'SubadqA',
-                    'environment' => 'sandbox'
-                ]
-            ];
-        } else {
-            return [
-                'type' => 'pix.status_update',
-                'data' => [
-                    'id' => $transaction->external_id ?? 'PX' . strtoupper(substr(uniqid(), -9)),
-                    'status' => 'PAID',
-                    'value' => (float) $transaction->amount,
-                    'payer' => [
-                        'name' => 'Maria Oliveira',
-                        'document' => '98765432100'
-                    ],
-                    'confirmed_at' => now()->toIso8601String()
-                ],
-                'signature' => bin2hex(random_bytes(6))
-            ];
         }
     }
 
@@ -117,9 +105,20 @@ class SimulatePixWebhook implements ShouldQueue
     {
         $transaction = PixTransaction::find($this->transactionId);
 
-        if ($transaction && $transaction->isPending()) {
+        if ($transaction && ($transaction->isPending() || $transaction->isProcessing())) {
             $transaction->update([
                 'status' => PixTransaction::STATUS_FAILED,
+            ]);
+
+            WebhookAttempt::create([
+                'transaction_type' => 'pix',
+                'transaction_id' => $this->transactionId,
+                'status' => WebhookAttempt::STATUS_FAILED,
+                'source' => WebhookAttempt::SOURCE_SIMULATION,
+                'error_message' => $exception->getMessage(),
+                'attempt_number' => WebhookAttempt::where('transaction_type', 'pix')
+                    ->where('transaction_id', $this->transactionId)
+                    ->count() + 1,
             ]);
 
             Log::error('PIX Webhook simulation failed', [

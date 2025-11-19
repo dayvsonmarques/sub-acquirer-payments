@@ -2,7 +2,10 @@
 
 namespace App\Jobs;
 
+use App\Events\TransactionPaid;
+use App\Models\WebhookAttempt;
 use App\Models\WithdrawTransaction;
+use App\Services\WebhookProcessor;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Cache;
@@ -17,7 +20,7 @@ class SimulateWithdrawWebhook implements ShouldQueue
     
     public function backoff(): array
     {
-        return [5, 10, 30];
+        return config('webhooks.retry.backoff', [5, 10, 30]);
     }
 
     public function __construct(
@@ -26,11 +29,12 @@ class SimulateWithdrawWebhook implements ShouldQueue
         $this->onQueue('webhooks');
     }
 
-    public function handle(): void
+    public function handle(WebhookProcessor $webhookProcessor): void
     {
         $lockKey = "withdraw_webhook_lock_{$this->transactionId}";
+        $lockTimeout = config('webhooks.lock.timeout', 30);
         
-        $lock = Cache::lock($lockKey, 30);
+        $lock = Cache::lock($lockKey, $lockTimeout);
         
         if (!$lock->get()) {
             Log::warning('Withdraw Webhook already being processed', [
@@ -49,7 +53,7 @@ class SimulateWithdrawWebhook implements ShouldQueue
                 return;
             }
 
-            if (!$transaction->isPending()) {
+            if (!$transaction->isPending() && !$transaction->isProcessing()) {
                 Log::info('Withdraw Transaction already processed', [
                     'transaction_id' => $transaction->id,
                     'status' => $transaction->status,
@@ -57,59 +61,43 @@ class SimulateWithdrawWebhook implements ShouldQueue
                 return;
             }
 
-            $webhookData = $this->generateWebhookPayload($transaction);
+            $webhookData = $webhookProcessor->generateWithdrawWebhookPayload($transaction);
 
-            $transaction->update([
-                'webhook_data' => $webhookData,
-            ]);
-
-            $transaction->markAsPaid();
-
-            Log::info('Withdraw Webhook simulated successfully', [
+            $attempt = WebhookAttempt::create([
+                'transaction_type' => 'withdraw',
                 'transaction_id' => $transaction->id,
-                'external_id' => $transaction->external_id,
-                'subacquirer' => $transaction->subacquirer->code,
-                'webhook_data' => $webhookData,
+                'status' => WebhookAttempt::STATUS_PENDING,
+                'payload' => $webhookData,
+                'source' => WebhookAttempt::SOURCE_SIMULATION,
+                'attempt_number' => WebhookAttempt::where('transaction_type', 'withdraw')
+                    ->where('transaction_id', $transaction->id)
+                    ->count() + 1,
             ]);
+
+            $processed = $webhookProcessor->processWithdrawWebhook($transaction, $webhookData);
+
+            if ($processed) {
+                $attempt->update([
+                    'status' => WebhookAttempt::STATUS_SUCCESS,
+                    'response' => ['processed' => true],
+                ]);
+
+                event(new TransactionPaid($transaction));
+
+                Log::info('Withdraw Webhook simulated successfully', [
+                    'transaction_id' => $transaction->id,
+                    'external_id' => $transaction->external_id,
+                    'subacquirer' => $transaction->subacquirer->code,
+                    'webhook_data' => $webhookData,
+                ]);
+            } else {
+                $attempt->update([
+                    'status' => WebhookAttempt::STATUS_FAILED,
+                    'error_message' => 'Transaction already processed',
+                ]);
+            }
         } finally {
             $lock->release();
-        }
-    }
-
-    private function generateWebhookPayload(WithdrawTransaction $transaction): array
-    {
-        $subacquirer = $transaction->subacquirer;
-        
-        if ($subacquirer->code === 'subadqa') {
-            return [
-                'event' => 'withdraw_completed',
-                'withdraw_id' => $transaction->external_id ?? 'WD' . strtoupper(substr(uniqid(), -9)),
-                'transaction_id' => $transaction->transaction_id,
-                'status' => 'SUCCESS',
-                'amount' => (float) $transaction->amount,
-                'requested_at' => $transaction->created_at->toIso8601String(),
-                'completed_at' => now()->toIso8601String(),
-                'metadata' => [
-                    'source' => 'SubadqA',
-                    'destination_bank' => 'Itaú'
-                ]
-            ];
-        } else {
-            return [
-                'type' => 'withdraw.status_update',
-                'data' => [
-                    'id' => $transaction->external_id ?? 'WDX' . strtoupper(substr(uniqid(), -5)),
-                    'status' => 'DONE',
-                    'amount' => (float) $transaction->amount,
-                    'bank_account' => [
-                        'bank' => 'Nubank',
-                        'agency' => $transaction->agency,
-                        'account' => $transaction->account
-                    ],
-                    'processed_at' => now()->toIso8601String()
-                ],
-                'signature' => bin2hex(random_bytes(6))
-            ];
         }
     }
 
@@ -117,9 +105,20 @@ class SimulateWithdrawWebhook implements ShouldQueue
     {
         $transaction = WithdrawTransaction::find($this->transactionId);
 
-        if ($transaction && $transaction->isPending()) {
+        if ($transaction && ($transaction->isPending() || $transaction->isProcessing())) {
             $transaction->update([
                 'status' => WithdrawTransaction::STATUS_FAILED,
+            ]);
+
+            WebhookAttempt::create([
+                'transaction_type' => 'withdraw',
+                'transaction_id' => $this->transactionId,
+                'status' => WebhookAttempt::STATUS_FAILED,
+                'source' => WebhookAttempt::SOURCE_SIMULATION,
+                'error_message' => $exception->getMessage(),
+                'attempt_number' => WebhookAttempt::where('transaction_type', 'withdraw')
+                    ->where('transaction_id', $this->transactionId)
+                    ->count() + 1,
             ]);
 
             Log::error('Withdraw Webhook simulation failed', [

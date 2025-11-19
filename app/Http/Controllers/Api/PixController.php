@@ -159,8 +159,14 @@ class PixController extends Controller
                 ], 500);
             }
 
+            $transaction->markAsProcessing();
+
+            $delayMin = config('webhooks.simulation.delay_min', 5);
+            $delayMax = config('webhooks.simulation.delay_max', 10);
+            $delay = rand($delayMin, $delayMax);
+            
             SimulatePixWebhook::dispatch($transaction->id)
-                ->delay(now()->addSeconds(rand(5, 10)));
+                ->delay(now()->addSeconds($delay));
 
             Log::info('PIX Transaction created', [
                 'transaction_id' => $transactionId,
