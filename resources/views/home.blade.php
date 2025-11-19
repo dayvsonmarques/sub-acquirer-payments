@@ -11,7 +11,7 @@
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between items-center h-16">
                     <div class="flex-shrink-0">
-                        <h1 class="text-xl font-semibold text-gray-800">Pix / Saques Payload</h1>
+                        <h1 class="text-xl font-semibold text-gray-800">Pix / Saques</h1>
                     </div>
                     <div class="flex space-x-4">
                         <a href="{{ route('client-area.index') }}" class="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
@@ -25,7 +25,7 @@
             </div>
         </nav>
         <div class="flex items-center justify-center px-4" style="min-height: calc(100vh - 4rem);">
-            <h2 class="text-2xl sm:text-3xl lg:text-4xl font-semibold text-gray-800 text-center">Pix / Saques Payload</h2>
+            <h2 class="text-2xl sm:text-3xl lg:text-4xl font-semibold text-gray-800 text-center">Pix / Saques</h2>
         </div>
     </body>
 </html>

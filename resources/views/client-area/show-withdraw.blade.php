@@ -11,7 +11,7 @@
         <div class="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
                 <div class="flex-shrink-0">
-                    <a href="{{ route('home') }}" class="text-xl font-semibold text-gray-800">Pix / Saques Payload</a>
+                    <a href="{{ route('home') }}" class="text-xl font-semibold text-gray-800">Pix / Saques</a>
                 </div>
                 <div class="flex space-x-4">
                     <a href="{{ route('client-area.index') }}" class="text-blue-600 hover:text-blue-900 px-3 py-2 rounded-md text-sm font-medium">

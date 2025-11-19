@@ -10,9 +10,9 @@
     <nav class="bg-white shadow-sm">
         <div class="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
-                <div class="flex-shrink-0">
-                    <a href="{{ route('home') }}" class="text-xl font-semibold text-gray-800">Pix / Saques Payload</a>
-                </div>
+                    <div class="flex-shrink-0">
+                        <a href="{{ route('home') }}" class="text-xl font-semibold text-gray-800">Pix / Saques</a>
+                    </div>
                 <div class="flex space-x-4">
                     <a href="{{ route('client-area.index') }}" class="text-blue-600 hover:text-blue-900 px-3 py-2 rounded-md text-sm font-medium">
                         Área do Cliente
@@ -79,7 +79,7 @@
                 </div>
                 @if($pixTransactions->hasPages())
                     <div class="px-2 sm:px-4 py-2 sm:py-3 border-t border-gray-200">
-                        {{ $pixTransactions->links() }}
+                        {{ $pixTransactions->appends(['withdrawPage' => request('withdrawPage')])->links() }}
                     </div>
                 @endif
             </div>
@@ -124,7 +124,7 @@
                 </div>
                 @if($withdrawTransactions->hasPages())
                     <div class="px-2 sm:px-4 py-2 sm:py-3 border-t border-gray-200">
-                        {{ $withdrawTransactions->links() }}
+                        {{ $withdrawTransactions->appends(['pixPage' => request('pixPage')])->links() }}
                     </div>
                 @endif
             </div>

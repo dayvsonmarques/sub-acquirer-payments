@@ -11,6 +11,18 @@ services:
       - redis-data:/data
     restart: unless-stopped
 
+  k6:
+    image: grafana/k6:0.50.0
+    container_name: laravel-test-k6
+    working_dir: /app
+    entrypoint: ["k6"]
+    volumes:
+      - ./:/app
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - redis
+
 volumes:
   redis-data:
 

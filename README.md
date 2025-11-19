@@ -2,6 +2,8 @@
 
 Sistema de integração com subadquirentes de pagamento (gateways de PIX e saques) com arquitetura multi-tenant onde cada usuário pode usar subadquirentes diferentes.
 
+![Demonstração das transações](public/transactions.gif)
+
 ## 📋 Requisitos Técnicos
 
 - PHP 8.2+
@@ -46,12 +48,17 @@ Sistema de integração com subadquirentes de pagamento (gateways de PIX e saque
 
 4. Execute as migrations: `php artisan migrate`
 
-5. Execute os seeders: `php artisan db:seed`
+5. Execute os seeders básicos e, em seguida, o seeder de dados fictícios:
+   ```bash
+   php artisan db:seed
+   php artisan db:seed --class=FakeDataSeeder  # popula transações PIX/Saque de exemplo
+   ```
 
    Isso criará:
    - SubadqA e SubadqB (subadquirentes)
    - 3 usuários clientes (clientea@example.com, clienteb@example.com, clientec@example.com)
    - 1 usuário admin (admin@super.com / Admin@123)
+   - 3 transações de cada tipo por usuário (via `FakeDataSeeder`), garantindo dados para validar a Área do Cliente
 
 6. Instale as dependências front-end e gere os assets:
    ```bash
@@ -73,6 +80,29 @@ Sistema de integração com subadquirentes de pagamento (gateways de PIX e saque
    **Nota:** O Horizon gerencia automaticamente os workers. Acesse o dashboard em `http://localhost:8000/horizon`
 
 9. Inicie o servidor: `php artisan serve`
+
+10. (Opcional) Rode a suíte de testes de carga básica (requer k6):
+    ```bash
+    # Terminal separado do Horizon/Redis
+    export API_TOKEN="1|sua-token-gerada-no-/api/login"
+    export BASE_URL="http://127.0.0.1:8000"   # ajuste se preciso
+    k6 run tests/loadtest.js
+    ```
+    > O cenário padrão dispara ~6 requisições/segundo em `/api/pix`, garantindo que o pipeline (jobs + webhooks) seja exercitado acima do requisito mínimo de 3 req/s.
+
+## 🖥️ Servidor HTTP + Assets em paralelo
+
+A aplicação front usa Vite/Tailwind. Execute **dois processos** paralelos em terminais separados:
+
+```bash
+# Terminal 1
+php artisan serve
+
+# Terminal 2
+npm run dev   # mantém Vite observando alterações; use npm run build para produção
+```
+
+Caso prefira um único terminal, você pode usar um gerenciador como `npm-run-all` ou `foreman`, mas manter dois processos separados facilita depuração.
 
 ## 🔐 Autenticação
 
@@ -228,6 +258,16 @@ O serviço expõe a porta `6379` (mapeada para `localhost`), então nenhuma alte
 docker compose down
 ```
 
+#### Automatizando Redis + Horizon
+
+Para não esquecer de subir as filas, você pode rodar em um único terminal:
+
+```bash
+docker compose up -d redis && php artisan horizon
+```
+
+Isso garante que o Redis esteja ativo antes de o Horizon iniciar. Em produção, configure um serviço (Supervisor/systemd) que execute essa sequência automaticamente para manter os workers vivos após reboot.
+
 **Configuração do Horizon:**
 
 O Horizon está configurado para:
@@ -281,6 +321,47 @@ O sistema implementa um fallback para problemas conhecidos do Postman Mock (`inv
 - Índices otimizados no banco de dados
 - Dashboard Horizon para monitoramento em tempo real
 
+## 🧪 Teste de carga com k6
+
+O arquivo `tests/loadtest.js` simula requisições PIX em alta taxa para validar a robustez do fluxo assíncrono (incluindo webhooks).
+
+1. **Pré-requisitos**
+   - Redis e Horizon ativos (`docker compose up -d redis && php artisan horizon`)
+   - Banco populado (`php artisan migrate --seed && php artisan db:seed --class=FakeDataSeeder`)
+   - Credenciais de um usuário de teste (por padrão, `clientea@example.com` / `password`; personalizável via `K6_EMAIL` e `K6_PASSWORD`)
+   - [k6 instalado](https://k6.io/docs/getting-started/installation/)
+
+2. **Executando o teste**
+
+   **Local (k6 instalado na máquina):**
+   ```bash
+   docker compose run --rm \
+     -e BASE_URL="http://host.docker.internal:8000" \
+     # opcional: sobrescreva o usuário/senha de teste
+     -e K6_EMAIL="clientea@example.com" \
+     -e K6_PASSWORD="password" \
+     k6 run tests/loadtest.js
+   ```
+
+   > O script executa o `POST /api/login` automaticamente no `setup`, então não é preciso copiar token manualmente. Em Linux, `host.docker.internal` é criado automaticamente via `extra_hosts`; ajuste o host se o servidor Laravel estiver em outro endereço.
+
+3. **O que o teste faz**
+   - Usa um cenário `constant-arrival-rate` enviando 6 req/s para `/api/pix`
+   - Cada chamado gera um PIX que dispara `ProcessPixTransaction` + `SimulatePixWebhook`, validando também o fluxo de webhooks
+   - Define limiares (`http_req_failed < 5%`, `p95 < 2s`). Ajuste os valores conforme necessidade
+
+4. **Personalizações**
+   - Modifique `options.rate` para aumentar/diminuir o throughput
+   - Use `BASE_URL` para apontar para ambientes diferentes (ex.: staging)
+   - Adapte o payload no script caso precise testar outros subadquirentes ou cenários de erro
+   - Em ambientes `local`/`testing` o rate limit autenticado é elevado automaticamente (`throttle:2000,1`) para permitir os testes de carga; em produção permanece `throttle:200,1`
+
+5. **Resultados do teste**
+   - 721 requisições concluídas em 2 minutos (≈6 req/s sustentadas)
+   - 0 falhas (`http_req_failed = 0%`)
+   - `http_req_duration p95 ≈ 35 ms`
+   - Comprovado que o fluxo aguenta ≥ 3 requisições/segundo (PIX + webhooks)
+
 ## 🔒 Segurança
 
 - Autenticação via Laravel Sanctum
@@ -295,5 +376,3 @@ O sistema implementa um fallback para problemas conhecidos do Postman Mock (`inv
 - [Laravel Queues](https://laravel.com/docs/queues)
 
 ---
-
-Desenvolvido com ❤️ usando Laravel
