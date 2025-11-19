@@ -8,11 +8,17 @@ Sistema de integração com subadquirentes de pagamento (gateways de PIX e saque
 - Laravel 12.38.1
 - MySQL/PostgreSQL
 - Composer
-- Redis (recomendado para produção, para filas e cache)
+- Redis
 
 ## 🚀 Instalação
 
-1. Clone o repositório e instale as dependências: `composer install`
+1. Clone o repositório, copie o arquivo de ambiente e instale as dependências PHP:
+   ```bash
+   git clone ...
+   cd laravel-test
+   cp .env.example .env
+   composer install
+   ```
 
 2. Configure o arquivo `.env` com as credenciais do banco de dados e filas:
    ```env
@@ -36,25 +42,37 @@ Sistema de integração com subadquirentes de pagamento (gateways de PIX e saque
    ```
    > O sistema já assume `America/Sao_Paulo` e `pt_BR` como padrões, garantindo horários e traduções alinhados ao contexto brasileiro.
 
-3. Execute as migrations: `php artisan migrate`
+3. Gere a chave da aplicação: `php artisan key:generate`
 
-4. Execute os seeders: `php artisan db:seed`
+4. Execute as migrations: `php artisan migrate`
+
+5. Execute os seeders: `php artisan db:seed`
 
    Isso criará:
    - SubadqA e SubadqB (subadquirentes)
    - 3 usuários clientes (clientea@example.com, clienteb@example.com, clientec@example.com)
    - 1 usuário admin (admin@super.com / Admin@123)
 
-5. Gere a chave da aplicação: `php artisan key:generate`
+6. Instale as dependências front-end e gere os assets:
+   ```bash
+   npm install
+   npm run build   # ou npm run dev para ambiente local
+   ```
 
-6. **Inicie o Laravel Horizon** (gerenciador de filas com auto-scaling). Sem o Horizon/queue worker ativo as transações permanecerão em `PENDING`, pois todo o fluxo com subadquirentes e webhooks é assíncrono:
+7. Inicie o Redis (necessário antes do Horizon). Caso não tenha o serviço instalado localmente, use o container incluso:
+   ```bash
+   docker compose up -d redis
+   ```
+   > Sem o Redis rodando, o Horizon não consumirá as filas e os status permanecerão em `PENDING`.
+
+8. **Inicie o Laravel Horizon** (gerenciador de filas com auto-scaling). Sem o Horizon/queue worker ativo as transações permanecerão em `PENDING`, pois todo o fluxo com subadquirentes e webhooks é assíncrono:
    ```bash
    php artisan horizon
    ```
    
    **Nota:** O Horizon gerencia automaticamente os workers. Acesse o dashboard em `http://localhost:8000/horizon`
 
-7. Inicie o servidor: `php artisan serve`
+9. Inicie o servidor: `php artisan serve`
 
 ## 🔐 Autenticação
 
@@ -82,7 +100,7 @@ O sistema usa Laravel Sanctum para autenticação via API.
    - Execute `POST /api/login` e copie o token da resposta
    - Use no header: `Authorization: Bearer {token}`
 
-**Importante:** O token é dinâmico e deve ser obtido através do endpoint `/api/login`. Não use tokens de exemplo.
+**Importante:** O token é dinâmico e deve ser obtido através do endpoint `/api/login`. 
 
 ## 📡 API Endpoints
 
