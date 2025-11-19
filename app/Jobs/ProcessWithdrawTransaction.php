@@ -25,6 +25,7 @@ class ProcessWithdrawTransaction implements ShouldQueue
         public int $transactionId
     ) {
         $this->onQueue('transactions');
+        $this->connection = 'redis';
     }
 
     public function handle(SubacquirerService $subacquirerService): void

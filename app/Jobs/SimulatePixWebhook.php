@@ -27,6 +27,7 @@ class SimulatePixWebhook implements ShouldQueue
         public int $transactionId
     ) {
         $this->onQueue('webhooks');
+        $this->connection = 'redis';
     }
 
     public function handle(WebhookProcessor $webhookProcessor): void
