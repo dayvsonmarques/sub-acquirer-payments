@@ -21,7 +21,7 @@ class WithdrawController extends Controller
     }
 
     #[OA\Post(
-        path: "/api/withdraw",
+        path: "/withdraw",
         summary: "Create a withdraw transaction",
         description: "Creates a new withdraw transaction and sends it to the user's configured subacquirer. A webhook will be simulated after 5-10 seconds to update the transaction status.",
         tags: ["Withdraw Transactions"],

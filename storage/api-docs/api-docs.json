@@ -18,14 +18,14 @@
         }
     ],
     "paths": {
-        "/api/pix": {
+        "/pix": {
             "post": {
                 "tags": [
                     "PIX Transactions"
                 ],
                 "summary": "Create a PIX transaction",
                 "description": "Creates a new PIX transaction and sends it to the user's configured subacquirer. A webhook will be simulated after 5-10 seconds to update the transaction status.",
-                "operationId": "36365a8e4d1bd9ce04cc5c98fb36155f",
+                "operationId": "e36ce8aafa34728b9bdd3d11b23768d2",
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -194,14 +194,14 @@
                 ]
             }
         },
-        "/api/withdraw": {
+        "/withdraw": {
             "post": {
                 "tags": [
                     "Withdraw Transactions"
                 ],
                 "summary": "Create a withdraw transaction",
                 "description": "Creates a new withdraw transaction and sends it to the user's configured subacquirer. A webhook will be simulated after 5-10 seconds to update the transaction status.",
-                "operationId": "53c3b669642dca58fab3d5bb4262f270",
+                "operationId": "516c1444c7ab02721a2c2520630e44f2",
                 "requestBody": {
                     "required": true,
                     "content": {

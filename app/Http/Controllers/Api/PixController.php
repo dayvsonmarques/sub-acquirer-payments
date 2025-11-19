@@ -21,7 +21,7 @@ class PixController extends Controller
     }
 
     #[OA\Post(
-        path: "/api/pix",
+        path: "/pix",
         summary: "Create a PIX transaction",
         description: "Creates a new PIX transaction and sends it to the user's configured subacquirer. A webhook will be simulated after 5-10 seconds to update the transaction status.",
         tags: ["PIX Transactions"],
