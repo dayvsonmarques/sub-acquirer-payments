@@ -43,7 +43,21 @@ O sistema usa Laravel Sanctum para autenticação via API.
 - `clientec@example.com` / `password` (SubadqA)
 - `admin@super.com` / `Admin@123` (Admin)
 
-Use o token retornado no header `Authorization: Bearer {token}` para requisições protegidas.
+### Como usar o token:
+
+1. **Via Swagger UI:**
+   - Acesse `http://localhost:8000/api/documentation`
+   - Execute o endpoint `/api/login` com suas credenciais
+   - Copie o token retornado no campo `data.token`
+   - Clique no botão **"Authorize"** no topo da página
+   - Cole o token no campo (sem o prefixo "Bearer")
+   - Agora você pode testar os endpoints protegidos
+
+2. **Via cURL/Postman:**
+   - Execute `POST /api/login` e copie o token da resposta
+   - Use no header: `Authorization: Bearer {token}`
+
+**Importante:** O token é dinâmico e deve ser obtido através do endpoint `/api/login`. Não use tokens de exemplo.
 
 ## 📡 API Endpoints
 
@@ -54,6 +68,12 @@ Use o token retornado no header `Authorization: Bearer {token}` para requisiçõ
 Acesse a documentação interativa em: `http://localhost:8000/api/documentation`
 
 A documentação inclui todos os endpoints, exemplos de requisições/respostas, validações e permite testar diretamente no navegador.
+
+**Como usar:**
+1. Primeiro, execute o endpoint `/api/login` para obter um token
+2. Clique no botão **"Authorize"** no topo da página Swagger
+3. Cole o token obtido do login (sem o prefixo "Bearer")
+4. Agora você pode testar os endpoints protegidos (`/api/pix`, `/api/withdraw`)
 
 Para regenerar após alterações: `php artisan l5-swagger:generate`
 

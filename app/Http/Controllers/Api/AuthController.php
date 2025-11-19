@@ -14,7 +14,7 @@ class AuthController extends Controller
     #[OA\Post(
         path: "/login",
         summary: "Authenticate user and get access token",
-        description: "Authenticates a user with email and password, returning a Sanctum API token for subsequent requests.",
+        description: "Authenticates a user with email and password, returning a Sanctum API token for subsequent requests. **IMPORTANT**: Copy the token from the response and use it in the 'Authorize' button at the top of this page, or include it in the Authorization header as 'Bearer {token}' for protected endpoints.",
         tags: ["Authentication"],
         requestBody: new OA\RequestBody(
             required: true,
@@ -38,7 +38,7 @@ class AuthController extends Controller
                             property: "data",
                             type: "object",
                             properties: [
-                                new OA\Property(property: "token", type: "string", example: "1|abcdef1234567890", description: "Sanctum API token"),
+                                new OA\Property(property: "token", type: "string", example: "1|abcdef1234567890abcdef1234567890", description: "Sanctum API token - Copy this value and use it in the Authorization header as 'Bearer {token}' for protected endpoints"),
                                 new OA\Property(property: "user", type: "object", properties: [
                                     new OA\Property(property: "id", type: "integer", example: 1),
                                     new OA\Property(property: "name", type: "string", example: "Cliente A"),

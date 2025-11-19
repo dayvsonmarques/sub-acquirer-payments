@@ -24,7 +24,7 @@
                     "Authentication"
                 ],
                 "summary": "Authenticate user and get access token",
-                "description": "Authenticates a user with email and password, returning a Sanctum API token for subsequent requests.",
+                "description": "Authenticates a user with email and password, returning a Sanctum API token for subsequent requests. **IMPORTANT**: Copy the token from the response and use it in the 'Authorize' button at the top of this page, or include it in the Authorization header as 'Bearer {token}' for protected endpoints.",
                 "operationId": "67d6d0fdd54fba132e1b6f55ca254183",
                 "requestBody": {
                     "required": true,
@@ -72,9 +72,9 @@
                                         "data": {
                                             "properties": {
                                                 "token": {
-                                                    "description": "Sanctum API token",
+                                                    "description": "Sanctum API token - Copy this value and use it in the Authorization header as 'Bearer {token}' for protected endpoints",
                                                     "type": "string",
-                                                    "example": "1|abcdef1234567890"
+                                                    "example": "1|abcdef1234567890abcdef1234567890"
                                                 },
                                                 "user": {
                                                     "properties": {
@@ -203,7 +203,7 @@
                     "PIX Transactions"
                 ],
                 "summary": "Create a PIX transaction",
-                "description": "Creates a new PIX transaction and sends it to the user's configured subacquirer. A webhook will be simulated after 5-10 seconds to update the transaction status.",
+                "description": "Creates a new PIX transaction and sends it to the user's configured subacquirer. A webhook will be simulated after 5-10 seconds to update the transaction status. **REQUIRES AUTHENTICATION**: First authenticate via /api/login to obtain a token, then click 'Authorize' at the top of this page and paste your token.",
                 "operationId": "e36ce8aafa34728b9bdd3d11b23768d2",
                 "requestBody": {
                     "required": true,
@@ -379,7 +379,7 @@
                     "Withdraw Transactions"
                 ],
                 "summary": "Create a withdraw transaction",
-                "description": "Creates a new withdraw transaction and sends it to the user's configured subacquirer. A webhook will be simulated after 5-10 seconds to update the transaction status.",
+                "description": "Creates a new withdraw transaction and sends it to the user's configured subacquirer. A webhook will be simulated after 5-10 seconds to update the transaction status. **REQUIRES AUTHENTICATION**: First authenticate via /api/login to obtain a token, then click 'Authorize' at the top of this page and paste your token.",
                 "operationId": "516c1444c7ab02721a2c2520630e44f2",
                 "requestBody": {
                     "required": true,
@@ -576,9 +576,10 @@
         "securitySchemes": {
             "bearerAuth": {
                 "type": "http",
+                "description": "Use the token obtained from /api/login endpoint. Format: Bearer {token}",
                 "name": "Authorization",
                 "in": "header",
-                "bearerFormat": "JWT",
+                "bearerFormat": "Sanctum",
                 "scheme": "bearer"
             }
         }

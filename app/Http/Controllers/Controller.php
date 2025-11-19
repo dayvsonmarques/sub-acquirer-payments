@@ -25,7 +25,8 @@ use OpenApi\Attributes as OA;
     name: "Authorization",
     in: "header",
     scheme: "bearer",
-    bearerFormat: "JWT"
+    bearerFormat: "Sanctum",
+    description: "Use the token obtained from /api/login endpoint. Format: Bearer {token}"
 )]
 abstract class Controller
 {

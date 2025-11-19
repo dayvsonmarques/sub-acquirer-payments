@@ -23,7 +23,7 @@ class WithdrawController extends Controller
     #[OA\Post(
         path: "/withdraw",
         summary: "Create a withdraw transaction",
-        description: "Creates a new withdraw transaction and sends it to the user's configured subacquirer. A webhook will be simulated after 5-10 seconds to update the transaction status.",
+        description: "Creates a new withdraw transaction and sends it to the user's configured subacquirer. A webhook will be simulated after 5-10 seconds to update the transaction status. **REQUIRES AUTHENTICATION**: First authenticate via /api/login to obtain a token, then click 'Authorize' at the top of this page and paste your token.",
         tags: ["Withdraw Transactions"],
         security: [["bearerAuth" => []]],
         requestBody: new OA\RequestBody(
@@ -188,7 +188,7 @@ class WithdrawController extends Controller
                     'external_id' => $transaction->external_id,
                     'status' => $transaction->status,
                     'amount' => $transaction->amount,
-                    'created_at' => $transaction->created_at->toIso8601String(),
+                    'created_at' => $transaction->created_at->format('c'),
                 ],
             ], 201);
         } catch (\Exception $e) {
