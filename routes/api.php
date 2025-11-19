@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
 
-Route::middleware(['auth:sanctum', 'throttle:200,1'])->group(function () {
+Route::middleware(['ensure-bearer', 'auth:sanctum', 'throttle:200,1'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/pix', [PixController::class, 'store']);
     Route::post('/withdraw', [WithdrawController::class, 'store']);
