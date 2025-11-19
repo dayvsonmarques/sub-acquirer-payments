@@ -14,7 +14,7 @@ Sistema de integração com subadquirentes de pagamento (gateways de PIX e saque
 
 1. Clone o repositório e instale as dependências: `composer install`
 
-2. Configure o arquivo `.env` com as credenciais do banco de dados:
+2. Configure o arquivo `.env` com as credenciais do banco de dados e filas:
    ```env
    DB_CONNECTION=mysql
    DB_HOST=127.0.0.1
@@ -29,7 +29,9 @@ Sistema de integração com subadquirentes de pagamento (gateways de PIX e saque
    REDIS_PORT=6379
    REDIS_PASSWORD=null
    REDIS_DB=0
+   APP_TIMEZONE=America/Sao_Paulo
    ```
+   > O sistema já assume `America/Sao_Paulo` como padrão, garantindo que os horários exibidos no painel coincidam com o horário de Brasília.
 
 3. Execute as migrations: `php artisan migrate`
 
@@ -42,7 +44,7 @@ Sistema de integração com subadquirentes de pagamento (gateways de PIX e saque
 
 5. Gere a chave da aplicação: `php artisan key:generate`
 
-6. **Inicie o Laravel Horizon** (gerenciador de filas com auto-scaling):
+6. **Inicie o Laravel Horizon** (gerenciador de filas com auto-scaling). Sem o Horizon/queue worker ativo as transações permanecerão em `PENDING`, pois todo o fluxo com subadquirentes e webhooks é assíncrono:
    ```bash
    php artisan horizon
    ```
