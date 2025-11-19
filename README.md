@@ -90,6 +90,27 @@ echo $token;
 http://localhost:8000/api
 ```
 
+### 📚 Documentação Swagger/OpenAPI
+
+A documentação interativa da API está disponível em:
+
+```
+http://localhost:8000/api/documentation
+```
+
+A documentação Swagger inclui:
+- Descrição completa de todos os endpoints
+- Exemplos de requisições e respostas
+- Esquemas de validação
+- Autenticação Bearer Token
+- Teste interativo dos endpoints
+
+Para regenerar a documentação após alterações:
+
+```bash
+php artisan l5-swagger:generate
+```
+
 ### 1. Criar Transação PIX
 
 **POST** `/api/pix`
@@ -211,6 +232,17 @@ curl -X POST http://localhost:8000/api/withdraw \
 ### Postman Collection
 
 Você pode importar a collection do Postman usando os exemplos acima.
+
+### Swagger UI
+
+Acesse a documentação interativa Swagger em: `http://localhost:8000/api/documentation`
+
+A interface Swagger permite:
+- Visualizar todos os endpoints disponíveis
+- Testar requisições diretamente no navegador
+- Ver exemplos de requisições e respostas
+- Autenticar usando Bearer Token
+- Validar esquemas de dados
 
 ## 🔄 Fluxo de Transação
 

@@ -1,0 +1,417 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "Subacquirer Payment Integration API",
+        "description": "API for integrating with payment subacquirers (PIX and Withdraw transactions)",
+        "contact": {
+            "email": "support@example.com"
+        },
+        "license": {
+            "name": "MIT"
+        },
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "http://localhost:8000/api",
+            "description": "Local development server"
+        }
+    ],
+    "paths": {
+        "/api/pix": {
+            "post": {
+                "tags": [
+                    "PIX Transactions"
+                ],
+                "summary": "Create a PIX transaction",
+                "description": "Creates a new PIX transaction and sends it to the user's configured subacquirer. A webhook will be simulated after 5-10 seconds to update the transaction status.",
+                "operationId": "36365a8e4d1bd9ce04cc5c98fb36155f",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "amount",
+                                    "pix_key",
+                                    "pix_key_type"
+                                ],
+                                "properties": {
+                                    "amount": {
+                                        "description": "Transaction amount (minimum 0.01)",
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 100.5
+                                    },
+                                    "pix_key": {
+                                        "description": "PIX key (CPF, email, phone, or random key)",
+                                        "type": "string",
+                                        "example": "12345678900"
+                                    },
+                                    "pix_key_type": {
+                                        "description": "Type of PIX key",
+                                        "type": "string",
+                                        "enum": [
+                                            "cpf",
+                                            "email",
+                                            "phone",
+                                            "random"
+                                        ],
+                                        "example": "cpf"
+                                    },
+                                    "description": {
+                                        "description": "Optional transaction description",
+                                        "type": "string",
+                                        "example": "Payment for services",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "PIX transaction created successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "PIX transaction created successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "transaction_id": {
+                                                    "type": "string",
+                                                    "example": "PIX-ABCD1234EFGH5678-1699999999"
+                                                },
+                                                "external_id": {
+                                                    "type": "string",
+                                                    "example": "ext-123456",
+                                                    "nullable": true
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "PENDING"
+                                                },
+                                                "amount": {
+                                                    "type": "string",
+                                                    "example": "100.50"
+                                                },
+                                                "created_at": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "example": "2025-11-17T21:00:00.000000Z"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - validation error or user/subacquirer issue",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "User does not have a subacquirer assigned"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "The given data was invalid."
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error or subacquirer API error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Failed to process PIX transaction"
+                                        },
+                                        "error": {
+                                            "type": "string",
+                                            "example": "SubadqA API error: Connection timeout"
+                                        },
+                                        "transaction_id": {
+                                            "type": "string",
+                                            "example": "PIX-ABCD1234EFGH5678-1699999999"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/withdraw": {
+            "post": {
+                "tags": [
+                    "Withdraw Transactions"
+                ],
+                "summary": "Create a withdraw transaction",
+                "description": "Creates a new withdraw transaction and sends it to the user's configured subacquirer. A webhook will be simulated after 5-10 seconds to update the transaction status.",
+                "operationId": "53c3b669642dca58fab3d5bb4262f270",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "amount",
+                                    "bank_code",
+                                    "agency",
+                                    "account",
+                                    "account_type",
+                                    "account_holder_name",
+                                    "account_holder_document"
+                                ],
+                                "properties": {
+                                    "amount": {
+                                        "description": "Withdraw amount (minimum 0.01)",
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 500
+                                    },
+                                    "bank_code": {
+                                        "description": "Bank code",
+                                        "type": "string",
+                                        "example": "001"
+                                    },
+                                    "agency": {
+                                        "description": "Bank agency number",
+                                        "type": "string",
+                                        "example": "1234"
+                                    },
+                                    "account": {
+                                        "description": "Bank account number",
+                                        "type": "string",
+                                        "example": "56789-0"
+                                    },
+                                    "account_type": {
+                                        "description": "Account type",
+                                        "type": "string",
+                                        "enum": [
+                                            "checking",
+                                            "savings"
+                                        ],
+                                        "example": "checking"
+                                    },
+                                    "account_holder_name": {
+                                        "description": "Account holder full name",
+                                        "type": "string",
+                                        "example": "João da Silva"
+                                    },
+                                    "account_holder_document": {
+                                        "description": "Account holder CPF/CNPJ",
+                                        "type": "string",
+                                        "example": "12345678900"
+                                    },
+                                    "description": {
+                                        "description": "Optional transaction description",
+                                        "type": "string",
+                                        "example": "Withdraw to bank account",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Withdraw transaction created successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Withdraw transaction created successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "transaction_id": {
+                                                    "type": "string",
+                                                    "example": "WD-ABCD1234EFGH5678-1699999999"
+                                                },
+                                                "external_id": {
+                                                    "type": "string",
+                                                    "example": "ext-456789",
+                                                    "nullable": true
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "PENDING"
+                                                },
+                                                "amount": {
+                                                    "type": "string",
+                                                    "example": "500.00"
+                                                },
+                                                "created_at": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "example": "2025-11-17T21:00:00.000000Z"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - validation error or user/subacquirer issue",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "User does not have a subacquirer assigned"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "The given data was invalid."
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error or subacquirer API error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Failed to process withdraw transaction"
+                                        },
+                                        "error": {
+                                            "type": "string",
+                                            "example": "SubadqA API error: Connection timeout"
+                                        },
+                                        "transaction_id": {
+                                            "type": "string",
+                                            "example": "WD-ABCD1234EFGH5678-1699999999"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "name": "Authorization",
+                "in": "header",
+                "bearerFormat": "JWT",
+                "scheme": "bearer"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "PIX Transactions",
+            "description": "PIX Transactions"
+        },
+        {
+            "name": "Withdraw Transactions",
+            "description": "Withdraw Transactions"
+        }
+    ]
+}
