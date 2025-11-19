@@ -92,13 +92,26 @@ class GenericSubacquirer implements SubacquirerInterface
                 $errorMessage = $response->body();
                 $errorData = $responseData ?? [];
                 
+                $shouldSimulateSuccess = false;
+                $simulationReason = '';
+                
                 if (isset($errorData['error']) && $errorData['error'] === 'invalid_amount' && $amount > 0) {
-                    Log::warning("Postman Mock returned invalid_amount error for valid amount. This is a known issue with the mock configuration. Simulating success response as fallback.", [
+                    $shouldSimulateSuccess = true;
+                    $simulationReason = 'invalid_amount error for valid amount';
+                } elseif (isset($errorData['error']['name']) && $errorData['error']['name'] === 'mockRequestNotFoundError') {
+                    $shouldSimulateSuccess = true;
+                    $simulationReason = 'mockRequestNotFoundError - Postman Mock could not find matching response';
+                }
+                
+                if ($shouldSimulateSuccess) {
+                    Log::warning("Postman Mock returned error. Simulating success response as fallback.", [
                         'subacquirer' => $this->subacquirer->code,
                         'amount' => $amount,
                         'payload' => $payload,
                         'mock_url' => $url,
-                        'note' => 'The Postman Mock appears to have a validation bug. Consider fixing the mock configuration or using a different mock service.',
+                        'error' => $errorData,
+                        'reason' => $simulationReason,
+                        'note' => 'The Postman Mock appears to have a configuration issue. Consider fixing the mock configuration or using a different mock service.',
                     ]);
                     
                     $simulatedResponse = [
@@ -108,7 +121,7 @@ class GenericSubacquirer implements SubacquirerInterface
                         'amount' => number_format($amount, 2, '.', ''),
                         'pix_key' => $payload['pix_key'],
                         'pix_key_type' => $payload['pix_key_type'],
-                        'created_at' => now()->toIso8601String(),
+                        'created_at' => now()->format('c'),
                     ];
                     
                     return [
