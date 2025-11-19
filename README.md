@@ -8,13 +8,28 @@ Sistema de integração com subadquirentes de pagamento (gateways de PIX e saque
 - Laravel 12.38.1
 - MySQL/PostgreSQL
 - Composer
-- Redis (opcional, para filas)
+- Redis (recomendado para produção, para filas e cache)
 
 ## 🚀 Instalação
 
 1. Clone o repositório e instale as dependências: `composer install`
 
-2. Configure o arquivo `.env` com as credenciais do banco de dados e `QUEUE_CONNECTION=database`
+2. Configure o arquivo `.env` com as credenciais do banco de dados:
+   ```env
+   DB_CONNECTION=mysql
+   DB_HOST=127.0.0.1
+   DB_PORT=3306
+   DB_DATABASE=laravel_test
+   DB_USERNAME=root
+   DB_PASSWORD=
+   
+   # Redis (recomendado para produção)
+   QUEUE_CONNECTION=redis
+   REDIS_HOST=127.0.0.1
+   REDIS_PORT=6379
+   REDIS_PASSWORD=null
+   REDIS_DB=0
+   ```
 
 3. Execute as migrations: `php artisan migrate`
 
@@ -27,7 +42,12 @@ Sistema de integração com subadquirentes de pagamento (gateways de PIX e saque
 
 5. Gere a chave da aplicação: `php artisan key:generate`
 
-6. Inicie o servidor de filas: `php artisan queue:work`
+6. **Inicie o Laravel Horizon** (gerenciador de filas com auto-scaling):
+   ```bash
+   php artisan horizon
+   ```
+   
+   **Nota:** O Horizon gerencia automaticamente os workers. Acesse o dashboard em `http://localhost:8000/horizon`
 
 7. Inicie o servidor: `php artisan serve`
 
@@ -129,13 +149,67 @@ Para adicionar um novo subadquirente, basta adicionar um registro na tabela `sub
 
 ## 🔧 Configuração
 
-### Filas
+### Filas e Redis
 
-Por padrão, usa `database`. Para produção, recomenda-se Redis:
+O sistema utiliza **Laravel Horizon** para gerenciamento dinâmico de workers com auto-scaling.
 
-Configure no `.env`:
-- `QUEUE_CONNECTION=redis`
-- Configure `REDIS_HOST`, `REDIS_PORT`, etc.
+**Configuração do Redis:**
+
+O sistema usa **Predis** (biblioteca PHP pura) por padrão, não requer extensão PHP Redis.
+
+**1. Instale o servidor Redis:**
+
+**Ubuntu/Debian:**
+```bash
+sudo apt-get update
+sudo apt-get install redis-server
+sudo systemctl start redis-server
+sudo systemctl enable redis-server
+```
+
+**macOS (via Homebrew):**
+```bash
+brew install redis
+brew services start redis
+```
+
+**2. Configure no `.env`:**
+```env
+QUEUE_CONNECTION=redis
+REDIS_CLIENT=predis
+REDIS_HOST=127.0.0.1
+REDIS_PORT=6379
+REDIS_PASSWORD=null
+REDIS_DB=0
+```
+
+**3. Verifique se o Redis está rodando:**
+```bash
+redis-cli ping
+# Deve retornar: PONG
+```
+
+**Nota:** Se preferir usar a extensão `phpredis` (mais rápida), instale a extensão PHP e configure `REDIS_CLIENT=phpredis`.
+
+**Configuração do Horizon:**
+
+O Horizon está configurado para:
+- **Fila dedicada:** `webhooks`
+- **Auto-scaling:** 3-10 workers em produção, 2-5 em desenvolvimento
+- **Balanceamento:** Automático baseado em tempo de espera
+- **Retry:** 3 tentativas com backoff exponencial
+
+**Iniciar o Horizon:**
+
+```bash
+php artisan horizon
+```
+
+**Acessar o Dashboard:**
+
+Após iniciar o Horizon, acesse: `http://localhost:8000/horizon`
+
+**Nota:** Para produção, configure o Horizon como serviço usando Supervisor ou systemd para garantir que ele sempre esteja rodando.
 
 ### Logging
 
@@ -160,11 +234,13 @@ O sistema implementa um fallback para problemas conhecidos do Postman Mock (`inv
 ## 📈 Performance
 
 - Suporta 3+ requisições/segundo
+- **Laravel Horizon** com auto-scaling dinâmico de workers (3-10 workers)
 - Processamento assíncrono de webhooks com delay configurável (5-10 segundos)
-- Jobs executados em fila dedicada (`webhooks`)
+- Jobs executados em fila dedicada (`webhooks`) via Redis
 - Locks distribuídos para evitar processamento duplicado
 - Retry exponencial para falhas temporárias
 - Índices otimizados no banco de dados
+- Dashboard Horizon para monitoramento em tempo real
 
 ## 🔒 Segurança
 
