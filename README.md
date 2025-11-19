@@ -29,9 +29,12 @@ Sistema de integração com subadquirentes de pagamento (gateways de PIX e saque
    REDIS_PORT=6379
    REDIS_PASSWORD=null
    REDIS_DB=0
+   APP_LOCALE=pt_BR
+   APP_FALLBACK_LOCALE=pt_BR
+   APP_FAKER_LOCALE=pt_BR
    APP_TIMEZONE=America/Sao_Paulo
    ```
-   > O sistema já assume `America/Sao_Paulo` como padrão, garantindo que os horários exibidos no painel coincidam com o horário de Brasília.
+   > O sistema já assume `America/Sao_Paulo` e `pt_BR` como padrões, garantindo horários e traduções alinhados ao contexto brasileiro.
 
 3. Execute as migrations: `php artisan migrate`
 
