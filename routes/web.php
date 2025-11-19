@@ -20,6 +20,8 @@ Route::middleware('auth')->group(function () {
 
 Route::middleware('auth')->prefix('client-area')->name('client-area.')->group(function () {
     Route::get('/', [ClientAreaController::class, 'index'])->name('index');
+    Route::get('/pix/{pixTransaction}', [ClientAreaController::class, 'showPix'])->name('pix.show');
+    Route::get('/withdraw/{withdrawTransaction}', [ClientAreaController::class, 'showWithdraw'])->name('withdraw.show');
 });
 
 Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {

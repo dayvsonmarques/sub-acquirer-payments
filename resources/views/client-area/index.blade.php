@@ -55,14 +55,15 @@
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
                             @forelse($pixTransactions as $transaction)
-                                <tr class="hover:bg-gray-50 transition-colors">
+                                <tr class="hover:bg-blue-50 transition-colors cursor-pointer active:bg-blue-100" onclick="window.location.href='{{ route('client-area.pix.show', $transaction->id) }}'">
                                     <td class="px-3 sm:px-6 py-3 sm:py-4 text-center text-sm sm:text-base text-gray-900 break-all leading-loose">{{ strlen($transaction->transaction_id) > 15 ? substr($transaction->transaction_id, 0, 15) . '...' : $transaction->transaction_id }}</td>
                                     <td class="px-3 sm:px-6 py-3 sm:py-4 text-center text-sm sm:text-base text-gray-900 whitespace-nowrap font-medium leading-loose">R$ {{ number_format($transaction->amount, 2, ',', '.') }}</td>
                                     <td class="px-3 sm:px-6 py-3 sm:py-4 text-center text-sm sm:text-base leading-loose">
                                         <span class="px-3 py-1 inline-flex items-center justify-center text-xs sm:text-sm leading-7 font-semibold rounded-full whitespace-nowrap
                                             {{ $transaction->status === 'CONFIRMED' ? 'bg-green-100 text-green-800' : 
+                                               ($transaction->status === 'PROCESSING' ? 'bg-blue-100 text-blue-800' :
                                                ($transaction->status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' : 
-                                                'bg-red-100 text-red-800') }}">
+                                                'bg-red-100 text-red-800')) }}">
                                             {{ $transaction->status }}
                                         </span>
                                     </td>
@@ -99,14 +100,15 @@
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
                             @forelse($withdrawTransactions as $transaction)
-                                <tr class="hover:bg-gray-50 transition-colors">
+                                <tr class="hover:bg-blue-50 transition-colors cursor-pointer active:bg-blue-100" onclick="window.location.href='{{ route('client-area.withdraw.show', $transaction->id) }}'">
                                     <td class="px-3 sm:px-6 py-3 sm:py-4 text-center text-sm sm:text-base text-gray-900 break-all leading-relaxed">{{ strlen($transaction->transaction_id) > 15 ? substr($transaction->transaction_id, 0, 15) . '...' : $transaction->transaction_id }}</td>
                                     <td class="px-3 sm:px-6 py-3 sm:py-4 text-center text-sm sm:text-base text-gray-900 whitespace-nowrap font-medium leading-relaxed">R$ {{ number_format($transaction->amount, 2, ',', '.') }}</td>
                                     <td class="px-3 sm:px-6 py-3 sm:py-4 text-center text-sm sm:text-base leading-relaxed">
                                         <span class="px-3 py-1 inline-flex items-center justify-center text-xs sm:text-sm leading-6 font-semibold rounded-full whitespace-nowrap
                                             {{ $transaction->status === 'PAID' ? 'bg-green-100 text-green-800' : 
+                                               ($transaction->status === 'PROCESSING' ? 'bg-blue-100 text-blue-800' :
                                                ($transaction->status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' : 
-                                                'bg-red-100 text-red-800') }}">
+                                                'bg-red-100 text-red-800')) }}">
                                             {{ $transaction->status }}
                                         </span>
                                     </td>

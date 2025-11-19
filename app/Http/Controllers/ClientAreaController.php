@@ -48,4 +48,42 @@ class ClientAreaController extends Controller
 
         return view('client-area.index', compact('pixTransactions', 'withdrawTransactions'));
     }
+
+    public function showPix(PixTransaction $pixTransaction)
+    {
+        $user = auth()->user();
+        
+        if (!$user) {
+            return redirect()->route('login');
+        }
+
+        $isAdmin = is_null($user->subacquirer_id);
+        
+        if (!$isAdmin && $pixTransaction->user_id !== $user->id) {
+            abort(403, 'Unauthorized access to this transaction');
+        }
+
+        $pixTransaction->load(['user', 'subacquirer']);
+
+        return view('client-area.show-pix', compact('pixTransaction'));
+    }
+
+    public function showWithdraw(WithdrawTransaction $withdrawTransaction)
+    {
+        $user = auth()->user();
+        
+        if (!$user) {
+            return redirect()->route('login');
+        }
+
+        $isAdmin = is_null($user->subacquirer_id);
+        
+        if (!$isAdmin && $withdrawTransaction->user_id !== $user->id) {
+            abort(403, 'Unauthorized access to this transaction');
+        }
+
+        $withdrawTransaction->load(['user', 'subacquirer']);
+
+        return view('client-area.show-withdraw', compact('withdrawTransaction'));
+    }
 }
