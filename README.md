@@ -194,10 +194,10 @@ redis-cli ping
 **Configuração do Horizon:**
 
 O Horizon está configurado para:
-- **Fila dedicada:** `webhooks`
+- **Filas processadas:** `transactions` (prioridade) e `webhooks`
 - **Auto-scaling:** 3-10 workers em produção, 2-5 em desenvolvimento
 - **Balanceamento:** Automático baseado em tempo de espera
-- **Retry:** 3 tentativas com backoff exponencial
+- **Retry:** 3 tentativas com backoff exponencial (5s, 10s, 30s)
 
 **Iniciar o Horizon:**
 
@@ -235,10 +235,12 @@ O sistema implementa um fallback para problemas conhecidos do Postman Mock (`inv
 
 - Suporta 3+ requisições/segundo
 - **Laravel Horizon** com auto-scaling dinâmico de workers (3-10 workers)
+- **Processamento assíncrono** de transações (PIX e Withdraw processados em background)
 - Processamento assíncrono de webhooks com delay configurável (5-10 segundos)
-- Jobs executados em fila dedicada (`webhooks`) via Redis
+- Jobs executados em filas dedicadas (`transactions` e `webhooks`) via Redis
+- **Rate limiting** configurado (200 requisições/minuto por usuário autenticado)
 - Locks distribuídos para evitar processamento duplicado
-- Retry exponencial para falhas temporárias
+- Retry exponencial para falhas temporárias (3 tentativas: 5s, 10s, 30s)
 - Índices otimizados no banco de dados
 - Dashboard Horizon para monitoramento em tempo real
 

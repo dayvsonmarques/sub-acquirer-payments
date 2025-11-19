@@ -4,9 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\StorePixRequest;
-use App\Jobs\SimulatePixWebhook;
+use App\Jobs\ProcessPixTransaction;
 use App\Models\PixTransaction;
-use App\Services\SubacquirerService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -15,15 +14,11 @@ use OpenApi\Attributes as OA;
 
 class PixController extends Controller
 {
-    public function __construct(
-        protected SubacquirerService $subacquirerService
-    ) {
-    }
 
     #[OA\Post(
         path: "/pix",
         summary: "Create a PIX transaction",
-        description: "Creates a new PIX transaction and sends it to the user's configured subacquirer. A webhook will be simulated after 5-10 seconds to update the transaction status. **REQUIRES AUTHENTICATION**: First authenticate via /api/login to obtain a token, then click 'Authorize' at the top of this page and paste your token.",
+        description: "Creates a new PIX transaction and processes it asynchronously. The transaction will be sent to the user's configured subacquirer in the background. A webhook will be simulated after 5-10 seconds to update the transaction status. **REQUIRES AUTHENTICATION**: First authenticate via /api/login to obtain a token, then click 'Authorize' at the top of this page and paste your token.",
         tags: ["PIX Transactions"],
         security: [["bearerAuth" => []]],
         requestBody: new OA\RequestBody(
@@ -115,7 +110,6 @@ class PixController extends Controller
                 ], 400);
             }
 
-            $implementation = $this->subacquirerService->getImplementation($subacquirer);
             $validated = $request->validated();
             $transactionId = 'PIX-' . Str::upper(Str::random(16)) . '-' . time();
 
@@ -141,32 +135,7 @@ class PixController extends Controller
                 ]);
             });
 
-            $response = $implementation->processPix($requestData);
-
-            $transaction->update([
-                'response_data' => $response,
-                'external_id' => $response['external_id'] ?? null,
-            ]);
-
-            if (!$response['success']) {
-                $transaction->update(['status' => PixTransaction::STATUS_FAILED]);
-
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Failed to process PIX transaction',
-                    'error' => $response['error'] ?? 'Unknown error',
-                    'transaction_id' => $transactionId,
-                ], 500);
-            }
-
-            $transaction->markAsProcessing();
-
-            $delayMin = config('webhooks.simulation.delay_min', 5);
-            $delayMax = config('webhooks.simulation.delay_max', 10);
-            $delay = rand($delayMin, $delayMax);
-            
-            SimulatePixWebhook::dispatch($transaction->id)
-                ->delay(now()->addSeconds($delay));
+            ProcessPixTransaction::dispatch($transaction->id);
 
             Log::info('PIX Transaction created', [
                 'transaction_id' => $transactionId,
