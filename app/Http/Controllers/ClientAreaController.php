@@ -105,9 +105,22 @@ class ClientAreaController extends Controller
             $implementation = $this->subacquirerService->getImplementation($subacquirer);
             $transactionId = 'PIX-' . Str::upper(Str::random(16)) . '-' . time();
 
+            $amount = (float) $request->amount;
+            
+            if ($amount <= 0) {
+                return back()->with('error', 'O valor deve ser maior que zero.')->withInput();
+            }
+
+            Log::debug('Client Area PIX Request Data', [
+                'raw_amount' => $request->amount,
+                'amount_type' => gettype($request->amount),
+                'converted_amount' => $amount,
+                'converted_amount_type' => gettype($amount),
+            ]);
+
             $requestData = [
                 'transaction_id' => $transactionId,
-                'amount' => $request->amount,
+                'amount' => $amount,
                 'pix_key' => $request->pix_key,
                 'pix_key_type' => $request->pix_key_type,
                 'description' => $request->description ?? null,
@@ -176,7 +189,7 @@ class ClientAreaController extends Controller
 
             $requestData = [
                 'transaction_id' => $transactionId,
-                'amount' => $request->amount,
+                'amount' => (float) $request->amount,
                 'bank_code' => $request->bank_code,
                 'agency' => $request->agency,
                 'account' => $request->account,

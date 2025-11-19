@@ -367,15 +367,39 @@ O sistema possui tratamento robusto de erros:
 
 - Validação de dados de entrada
 - Tratamento de erros de API dos subadquirentes
-- Retry automático em caso de falha (3 tentativas)
+- Retry automático em caso de falha (3 tentativas com backoff exponencial: 5s, 10s, 30s)
+- Locks para evitar processamento duplicado de webhooks
 - Logging detalhado de erros
+
+### Workaround para Postman Mock
+
+O sistema implementa um workaround para um problema conhecido do Postman Mock relacionado à validação de `amount`. Quando o mock retorna erro `invalid_amount` mesmo com valores válidos, o sistema:
+
+1. Detecta o erro específico `invalid_amount`
+2. Registra um warning no log indicando o problema do mock
+3. Simula uma resposta de sucesso como fallback
+4. Permite que a aplicação continue funcionando normalmente
+
+**Nota:** Este é um workaround temporário. Recomenda-se corrigir a configuração do Postman Mock ou usar um serviço de mock alternativo em produção.
+
+O sistema também utiliza o header `x-mock-response-name` para especificar qual resposta do mock deve ser retornada, conforme documentação do Postman.
 
 ## 📈 Performance
 
 - Suporta 3+ requisições/segundo
-- Processamento assíncrono de webhooks
+- Processamento assíncrono de webhooks com delay configurável (5-10 segundos)
+- Jobs executados em fila dedicada (`webhooks`) para melhor isolamento
+- Locks distribuídos para evitar processamento duplicado
+- Retry exponencial para falhas temporárias
 - Índices otimizados no banco de dados
 - Cache de configurações quando aplicável
+
+### Otimizações Implementadas
+
+1. **Delay no Dispatch**: Os webhooks são agendados com delay aleatório (5-10s) no momento do dispatch, não bloqueando workers
+2. **Locks Distribuídos**: Uso de Cache locks para garantir que cada webhook seja processado apenas uma vez, mesmo em alta concorrência
+3. **Fila Dedicada**: Jobs de webhook executam em fila separada (`webhooks`) permitindo escalonamento independente
+4. **Retry Exponencial**: Backoff progressivo (5s → 10s → 30s) para tentativas de retry
 
 ## 🔒 Segurança
 

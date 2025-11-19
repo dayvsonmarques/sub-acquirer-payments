@@ -46,7 +46,7 @@ class PixController extends Controller
 
             $requestData = [
                 'transaction_id' => $transactionId,
-                'amount' => $validated['amount'],
+                'amount' => (float) $validated['amount'],
                 'pix_key' => $validated['pix_key'],
                 'pix_key_type' => $validated['pix_key_type'],
                 'description' => $validated['description'] ?? null,
@@ -84,7 +84,8 @@ class PixController extends Controller
                 ], 500);
             }
 
-            SimulatePixWebhook::dispatch($transaction->id);
+            SimulatePixWebhook::dispatch($transaction->id)
+                ->delay(now()->addSeconds(rand(5, 10)));
 
             Log::info('PIX Transaction created', [
                 'transaction_id' => $transactionId,

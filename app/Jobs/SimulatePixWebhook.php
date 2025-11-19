@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\PixTransaction;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class SimulatePixWebhook implements ShouldQueue
@@ -12,49 +13,67 @@ class SimulatePixWebhook implements ShouldQueue
     use Queueable;
 
     public $tries = 3;
-    public $backoff = [5, 10, 30];
+    public $maxExceptions = 3;
+    
+    public function backoff(): array
+    {
+        return [5, 10, 30];
+    }
 
     public function __construct(
         public int $transactionId
     ) {
+        $this->onQueue('webhooks');
     }
 
     public function handle(): void
     {
-        $transaction = PixTransaction::with('subacquirer')->find($this->transactionId);
-
-        if (!$transaction) {
-            Log::warning('PIX Transaction not found for webhook simulation', [
+        $lockKey = "pix_webhook_lock_{$this->transactionId}";
+        
+        $lock = Cache::lock($lockKey, 30);
+        
+        if (!$lock->get()) {
+            Log::warning('PIX Webhook already being processed', [
                 'transaction_id' => $this->transactionId,
             ]);
             return;
         }
 
-        if (!$transaction->isPending()) {
-            Log::info('PIX Transaction already processed', [
-                'transaction_id' => $transaction->id,
-                'status' => $transaction->status,
+        try {
+            $transaction = PixTransaction::with('subacquirer')->find($this->transactionId);
+
+            if (!$transaction) {
+                Log::warning('PIX Transaction not found for webhook simulation', [
+                    'transaction_id' => $this->transactionId,
+                ]);
+                return;
+            }
+
+            if (!$transaction->isPending()) {
+                Log::info('PIX Transaction already processed', [
+                    'transaction_id' => $transaction->id,
+                    'status' => $transaction->status,
+                ]);
+                return;
+            }
+
+            $webhookData = $this->generateWebhookPayload($transaction);
+
+            $transaction->update([
+                'webhook_data' => $webhookData,
             ]);
-            return;
+
+            $transaction->markAsConfirmed();
+
+            Log::info('PIX Webhook simulated successfully', [
+                'transaction_id' => $transaction->id,
+                'external_id' => $transaction->external_id,
+                'subacquirer' => $transaction->subacquirer->code,
+                'webhook_data' => $webhookData,
+            ]);
+        } finally {
+            $lock->release();
         }
-
-        $delay = rand(5, 10);
-        sleep($delay);
-
-        $webhookData = $this->generateWebhookPayload($transaction);
-
-        $transaction->update([
-            'webhook_data' => $webhookData,
-        ]);
-
-        $transaction->markAsConfirmed();
-
-        Log::info('PIX Webhook simulated successfully', [
-            'transaction_id' => $transaction->id,
-            'external_id' => $transaction->external_id,
-            'subacquirer' => $transaction->subacquirer->code,
-            'webhook_data' => $webhookData,
-        ]);
     }
 
     private function generateWebhookPayload(PixTransaction $transaction): array

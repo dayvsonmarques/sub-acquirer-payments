@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\WithdrawTransaction;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class SimulateWithdrawWebhook implements ShouldQueue
@@ -12,49 +13,67 @@ class SimulateWithdrawWebhook implements ShouldQueue
     use Queueable;
 
     public $tries = 3;
-    public $backoff = [5, 10, 30];
+    public $maxExceptions = 3;
+    
+    public function backoff(): array
+    {
+        return [5, 10, 30];
+    }
 
     public function __construct(
         public int $transactionId
     ) {
+        $this->onQueue('webhooks');
     }
 
     public function handle(): void
     {
-        $transaction = WithdrawTransaction::with('subacquirer')->find($this->transactionId);
-
-        if (!$transaction) {
-            Log::warning('Withdraw Transaction not found for webhook simulation', [
+        $lockKey = "withdraw_webhook_lock_{$this->transactionId}";
+        
+        $lock = Cache::lock($lockKey, 30);
+        
+        if (!$lock->get()) {
+            Log::warning('Withdraw Webhook already being processed', [
                 'transaction_id' => $this->transactionId,
             ]);
             return;
         }
 
-        if (!$transaction->isPending()) {
-            Log::info('Withdraw Transaction already processed', [
-                'transaction_id' => $transaction->id,
-                'status' => $transaction->status,
+        try {
+            $transaction = WithdrawTransaction::with('subacquirer')->find($this->transactionId);
+
+            if (!$transaction) {
+                Log::warning('Withdraw Transaction not found for webhook simulation', [
+                    'transaction_id' => $this->transactionId,
+                ]);
+                return;
+            }
+
+            if (!$transaction->isPending()) {
+                Log::info('Withdraw Transaction already processed', [
+                    'transaction_id' => $transaction->id,
+                    'status' => $transaction->status,
+                ]);
+                return;
+            }
+
+            $webhookData = $this->generateWebhookPayload($transaction);
+
+            $transaction->update([
+                'webhook_data' => $webhookData,
             ]);
-            return;
+
+            $transaction->markAsPaid();
+
+            Log::info('Withdraw Webhook simulated successfully', [
+                'transaction_id' => $transaction->id,
+                'external_id' => $transaction->external_id,
+                'subacquirer' => $transaction->subacquirer->code,
+                'webhook_data' => $webhookData,
+            ]);
+        } finally {
+            $lock->release();
         }
-
-        $delay = rand(5, 10);
-        sleep($delay);
-
-        $webhookData = $this->generateWebhookPayload($transaction);
-
-        $transaction->update([
-            'webhook_data' => $webhookData,
-        ]);
-
-        $transaction->markAsPaid();
-
-        Log::info('Withdraw Webhook simulated successfully', [
-            'transaction_id' => $transaction->id,
-            'external_id' => $transaction->external_id,
-            'subacquirer' => $transaction->subacquirer->code,
-            'webhook_data' => $webhookData,
-        ]);
     }
 
     private function generateWebhookPayload(WithdrawTransaction $transaction): array

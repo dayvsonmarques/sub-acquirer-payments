@@ -46,7 +46,7 @@ class WithdrawController extends Controller
 
             $requestData = [
                 'transaction_id' => $transactionId,
-                'amount' => $validated['amount'],
+                'amount' => (float) $validated['amount'],
                 'bank_code' => $validated['bank_code'],
                 'agency' => $validated['agency'],
                 'account' => $validated['account'],
@@ -92,7 +92,8 @@ class WithdrawController extends Controller
                 ], 500);
             }
 
-            SimulateWithdrawWebhook::dispatch($transaction->id);
+            SimulateWithdrawWebhook::dispatch($transaction->id)
+                ->delay(now()->addSeconds(rand(5, 10)));
 
             Log::info('Withdraw Transaction created', [
                 'transaction_id' => $transactionId,
